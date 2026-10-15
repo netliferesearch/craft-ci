@@ -10,7 +10,7 @@ never touches the host. Only the snapshot job and the deploy step differ per hos
 ## What the action does (v0, deliberately small)
 
 1. `ddev start` from the repo's committed `.ddev/config.yaml`
-2. `.env` from `.env.example.dev` or `.env.example`, plus DDEV's database variables. devMode is off, as in production, so Twig behaves the way the live site does; errors are read from `storage/logs` instead
+2. `.env` from `.env.example.dev` or `.env.example`, plus DDEV's database variables. devMode is off and `CRAFT_ENVIRONMENT` is `staging` (input `environment`), so Twig and site configs behave as on the live site and nothing tries a Vite dev server; errors are read from `storage/logs`
 3. `composer install`, and `npm ci && npm run build` when `package.json` has a `build` script
 4. Snapshot import from the bucket when `snapshot-key` is set, otherwise a fresh install from project config
 5. `craft migrate/all`, `craft project-config/apply`, `craft clear-caches/all`

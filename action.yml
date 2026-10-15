@@ -22,6 +22,9 @@ inputs:
   security-key:
     description: CRAFT_SECURITY_KEY matching the snapshot, if it holds encrypted values. Otherwise a throwaway key is generated.
     default: ""
+  environment:
+    description: Value for CRAFT_ENVIRONMENT. A production-like name keeps site configs from enabling dev-only behaviour such as the Vite dev server.
+    default: staging
 
 runs:
   using: composite
@@ -33,6 +36,7 @@ runs:
       shell: bash
       env:
         SECURITY_KEY: ${{ inputs.security-key }}
+        CRAFT_ENV: ${{ inputs.environment }}
       run: |
         set -euo pipefail
         if [ -f .env.example.dev ]; then cp .env.example.dev .env
@@ -40,7 +44,8 @@ runs:
         else touch .env; fi
         key="${SECURITY_KEY:-$(openssl rand -hex 32)}"
         {
-          echo "CRAFT_ENVIRONMENT=dev"
+          echo "CRAFT_ENVIRONMENT=$CRAFT_ENV"
+          echo "ENVIRONMENT=$CRAFT_ENV"
           echo "CRAFT_DEV_MODE=false"
           echo "CRAFT_ALLOW_ADMIN_CHANGES=false"
           echo "CRAFT_DISALLOW_ROBOTS=true"
