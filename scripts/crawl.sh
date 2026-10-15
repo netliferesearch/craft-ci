@@ -41,13 +41,17 @@ while IFS= read -r url; do
   printf '%-6s %-7s %s\n' "$code" "$secs" "$url"
   case "$code" in
     2*|3*) ;;
-    *) fail=1 ;;
+    *)
+      fail=1
+      # In dev mode Craft's error page carries the exception; show its first lines.
+      "${fetch[@]}" "$url" | sed -e 's/<[^>]*>/ /g' | grep -iE 'exception|error|undefined|not found' | head -n 3 | sed 's/^/      /' || true
+      ;;
   esac
 done <<< "$urls"
 
 after="$(log_marker)"
 if [ "$after" -gt "$before" ]; then
-  new="$(log_lines | tail -n "+$((before + 1))" | grep -E '\[(error|critical)\]' || true)"
+  new="$(log_lines | tail -n "+$((before + 1))" | grep -E '\[(error|critical)\]|\[(web|console)\.(ERROR|CRITICAL)\]' || true)"
   if [ -n "$new" ]; then
     echo "::error::Craft logged errors during the crawl"
     echo "$new" | head -n 50

@@ -119,4 +119,5 @@ runs:
       shell: bash
       run: |
         ls storage/logs 2>/dev/null || true
-        tail -n 200 storage/logs/web-*.log storage/logs/console-*.log 2>/dev/null || true
+        echo "--- errors and exceptions (last 120 matching lines) ---"
+        grep -hE '\[(web|console)\.(ERROR|CRITICAL)\]|\[(error|critical)\]|Exception|Stack trace|^#[0-9]+ ' storage/logs/web-*.log storage/logs/console-*.log 2>/dev/null | tail -n 120 || true
