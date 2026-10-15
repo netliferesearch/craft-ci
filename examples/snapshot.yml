@@ -23,13 +23,13 @@ jobs:
       - name: Snapshot
         env:
           SLUG: CHANGE-ME
-          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
-          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
-          DB_USER: ${{ secrets.STAGING_DB_USER }}
-          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
-          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}   # leave empty for Craft Cloud
-          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          DB_HOST: ${{ secrets.SOURCE_DB_HOST }}
+          DB_NAME: ${{ secrets.SOURCE_DB_NAME }}
+          DB_USER: ${{ secrets.SOURCE_DB_USER }}
+          DB_PASSWORD: ${{ secrets.SOURCE_DB_PASSWORD }}
+          SSH_HOST: ${{ secrets.SOURCE_SSH_HOST }}   # leave empty for Craft Cloud or a directly reachable database
+          SSH_USER: ${{ secrets.SOURCE_SSH_USER }}
+          SSH_KEY: ${{ secrets.SOURCE_SSH_KEY }}
           SCRUB_TRUNCATE: ""
           DO_SPACES_BUCKET: netlife-craft-snapshots
           DO_SPACES_REGION: fra1

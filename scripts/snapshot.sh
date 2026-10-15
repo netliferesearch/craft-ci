@@ -23,7 +23,7 @@ fi
 
 echo "dumping $DB_NAME from $DB_HOST"
 mysqldump --host="$host" --port="$port" --protocol=TCP --user="$DB_USER" --password="$DB_PASSWORD" \
-  --single-transaction --quick --no-tablespaces --set-gtid-purged=OFF --lock-tables=false \
+  --single-transaction --quick --no-tablespaces --skip-triggers --set-gtid-purged=OFF --lock-tables=false \
   "$DB_NAME" > "$work/raw.sql"
 
 echo "restoring into scratch mysql and scrubbing"

@@ -73,14 +73,24 @@ Two access keys, both scoped to that bucket:
 
 ## Snapshot job
 
-`scripts/snapshot.sh` dumps a staging database, restores it into a throwaway MySQL, applies
+`scripts/snapshot.sh` dumps the source database (staging where one exists, otherwise production
+through a read-only user), restores it into a throwaway MySQL, applies
 `scripts/scrub.sql`, dumps again and uploads `snapshots/<slug>/latest.sql.gz`. It runs as a
 nightly GitHub Actions workflow in each site repo (`examples/snapshot.yml`), with the staging
 credentials as that repo's secrets, the same pattern as craft-cloud-remote-backups. Logs and
 credentials stay in the private site repo; this repo only provides the script.
 
-Per-site secrets: `STAGING_DB_HOST`, `STAGING_DB_NAME`, `STAGING_DB_USER`, `STAGING_DB_PASSWORD`,
-and for Forge and Servebolt sites `STAGING_SSH_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`.
+Per-site secrets: `SOURCE_DB_HOST`, `SOURCE_DB_NAME`, `SOURCE_DB_USER`, `SOURCE_DB_PASSWORD`,
+and for Forge and Servebolt sites `SOURCE_SSH_HOST`, `SOURCE_SSH_USER`, `SOURCE_SSH_KEY`.
+
+When the source is production, give the job its own MySQL user with `SELECT` only. The dump runs
+with `--single-transaction --lock-tables=false --skip-triggers`, so that is all it needs, and
+nothing the job does can write to the source:
+
+```sql
+CREATE USER 'snapshot'@'127.0.0.1' IDENTIFIED BY '<password>';
+GRANT SELECT ON <database>.* TO 'snapshot'@'127.0.0.1';
+```
 
 How it reaches the staging database depends on the host:
 
