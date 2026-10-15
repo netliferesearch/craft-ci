@@ -1,0 +1,38 @@
+# Copy to .github/workflows/snapshot.yml in the site repo. Nightly scrubbed staging snapshot.
+name: Snapshot
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+        ports: ["3307:3306"]
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: netliferesearch/craft-ci
+          ref: v1
+      - name: Snapshot
+        env:
+          SLUG: CHANGE-ME
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}   # leave empty for Craft Cloud
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          SCRUB_TRUNCATE: ""
+          DO_SPACES_BUCKET: ${{ vars.SPACES_BUCKET }}
+          DO_SPACES_REGION: ${{ vars.SPACES_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_WRITE_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_WRITE_SECRET }}
+        run: bash scripts/snapshot.sh

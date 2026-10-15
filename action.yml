@@ -1,0 +1,122 @@
+name: Verify Craft site
+description: Boot a Craft CMS site in DDEV with a scrubbed snapshot, run migrations and project config, crawl the sitemap.
+
+inputs:
+  snapshot-key:
+    description: Key of a scrubbed .sql.gz in the bucket, e.g. snapshots/nch/latest.sql.gz. Empty means a fresh install from project config.
+    default: ""
+  spaces-key:
+    default: ""
+  spaces-secret:
+    default: ""
+  spaces-bucket:
+    default: netlife-previews
+  spaces-region:
+    default: fra1
+  build:
+    description: Run npm ci and npm run build when package.json has a build script
+    default: "true"
+  crawl-limit:
+    description: Maximum number of sitemap URLs to request
+    default: "40"
+  security-key:
+    description: CRAFT_SECURITY_KEY matching the snapshot, if it holds encrypted values. Otherwise a throwaway key is generated.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Start DDEV
+      uses: ddev/github-action-setup-ddev@v1
+
+    - name: Environment file
+      shell: bash
+      env:
+        SECURITY_KEY: ${{ inputs.security-key }}
+      run: |
+        set -euo pipefail
+        if [ -f .env.example.dev ]; then cp .env.example.dev .env
+        elif [ -f .env.example ]; then cp .env.example .env
+        else touch .env; fi
+        key="${SECURITY_KEY:-$(openssl rand -hex 32)}"
+        {
+          echo "CRAFT_ENVIRONMENT=dev"
+          echo "CRAFT_DEV_MODE=true"
+          echo "CRAFT_ALLOW_ADMIN_CHANGES=false"
+          echo "CRAFT_DISALLOW_ROBOTS=true"
+          echo "CRAFT_SECURITY_KEY=$key"
+          echo "CRAFT_APP_ID=CraftCMS--ci"
+          echo "CRAFT_DB_DRIVER=mysql"
+          echo "CRAFT_DB_SERVER=db"
+          echo "CRAFT_DB_PORT=3306"
+          echo "CRAFT_DB_DATABASE=db"
+          echo "CRAFT_DB_USER=db"
+          echo "CRAFT_DB_PASSWORD=db"
+          echo "PRIMARY_SITE_URL=https://$(ddev describe -j | jq -r '.raw.name').ddev.site"
+        } >> .env
+
+    - name: Composer
+      shell: bash
+      run: ddev composer install --no-interaction --prefer-dist --no-progress
+
+    - name: Frontend build
+      if: inputs.build == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null; then
+          ddev npm ci --no-audit --no-fund
+          ddev npm run build
+        else
+          echo "no build script, skipping"
+        fi
+
+    - name: Fetch snapshot
+      if: inputs.snapshot-key != ''
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.spaces-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.spaces-secret }}
+        AWS_DEFAULT_REGION: ${{ inputs.spaces-region }}
+        BUCKET: ${{ inputs.spaces-bucket }}
+        KEY: ${{ inputs.snapshot-key }}
+      run: |
+        set -euo pipefail
+        aws s3 cp "s3://$BUCKET/$KEY" snapshot.sql.gz \
+          --endpoint-url "https://$AWS_DEFAULT_REGION.digitaloceanspaces.com"
+        ddev import-db --file=snapshot.sql.gz
+        rm -f snapshot.sql.gz
+
+    - name: Fresh install
+      if: inputs.snapshot-key == ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        url="$(grep ^PRIMARY_SITE_URL= .env | cut -d= -f2-)"
+        ddev craft install/craft --interactive=0 \
+          --username=ci --email=ci@example.test --password="$(openssl rand -hex 12)" \
+          --site-name=CI --site-url="$url" --language=nb-NO
+
+    - name: Migrate and apply project config
+      shell: bash
+      run: |
+        set -euo pipefail
+        ddev craft migrate/all --interactive=0
+        ddev craft project-config/apply --interactive=0
+        ddev craft clear-caches/all
+
+    - name: Crawl
+      shell: bash
+      env:
+        CRAWL_LIMIT: ${{ inputs.crawl-limit }}
+      run: |
+        set -euo pipefail
+        url="$(grep ^PRIMARY_SITE_URL= .env | cut -d= -f2-)"
+        bash "$GITHUB_ACTION_PATH/scripts/crawl.sh" "$url" "$CRAWL_LIMIT"
+
+    - name: Craft log on failure
+      if: failure()
+      shell: bash
+      run: |
+        ls storage/logs 2>/dev/null || true
+        tail -n 200 storage/logs/web-*.log storage/logs/console-*.log 2>/dev/null || true
