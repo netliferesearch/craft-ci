@@ -43,8 +43,27 @@ data, so site repos in both GitHub organizations can use it without any access s
 
 ## Bucket and keys
 
-One DigitalOcean Spaces bucket, `netlife-craft-snapshots` in `fra1`, private, no CDN, with a
-lifecycle rule that deletes the dated copies after 14 days (`latest.sql.gz` is rewritten nightly).
+One DigitalOcean Spaces bucket, `netlife-craft-snapshots` in `fra1`, standard storage, private,
+no CDN. Layout:
+
+```
+snapshots/<slug>/latest.sql.gz      what verify and previews read; rewritten nightly
+history/<slug>/YYYY-MM-DD.sql.gz    dated copies, expired after 14 days by a lifecycle rule
+```
+
+The control panel has no lifecycle settings; set the rule once over the S3 API with the write key:
+
+```bash
+cat > lifecycle.json <<'JSON'
+{"Rules":[{"ID":"expire-history","Status":"Enabled","Filter":{"Prefix":"history/"},"Expiration":{"Days":14}}]}
+JSON
+AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... aws s3api put-bucket-lifecycle-configuration \
+  --bucket netlife-craft-snapshots --lifecycle-configuration file://lifecycle.json \
+  --endpoint-url https://fra1.digitaloceanspaces.com
+aws s3api get-bucket-lifecycle-configuration --bucket netlife-craft-snapshots \
+  --endpoint-url https://fra1.digitaloceanspaces.com
+```
+
 Two access keys, both scoped to that bucket:
 
 | Key | Scope | GitHub secrets (in both orgs) | Used by |

@@ -41,6 +41,6 @@ mysqldump --host=127.0.0.1 --port="$SCRATCH_PORT" --protocol=TCP --user=root \
 echo "uploading"
 aws s3 cp "$work/latest.sql.gz" "s3://$DO_SPACES_BUCKET/snapshots/$SLUG/latest.sql.gz" \
   --endpoint-url "https://$DO_SPACES_REGION.digitaloceanspaces.com"
-aws s3 cp "$work/latest.sql.gz" "s3://$DO_SPACES_BUCKET/snapshots/$SLUG/$(date -u +%Y-%m-%d).sql.gz" \
+aws s3 cp "$work/latest.sql.gz" "s3://$DO_SPACES_BUCKET/history/$SLUG/$(date -u +%Y-%m-%d).sql.gz" \
   --endpoint-url "https://$DO_SPACES_REGION.digitaloceanspaces.com"
 echo "done: snapshots/$SLUG/latest.sql.gz"
