@@ -65,7 +65,7 @@ runs:
           echo "CRAFT_DB_USER=db"
           echo "CRAFT_DB_PASSWORD=db"
           echo "PRIMARY_SITE_URL=https://$(ddev describe -j | jq -r '.raw.name').ddev.site"
-          [ -n "$EXTRA_ENV" ] && printf '%s\n' "$EXTRA_ENV"
+          if [ -n "$EXTRA_ENV" ]; then printf '%s\n' "$EXTRA_ENV"; fi
         } >> .env
 
     - name: Composer
