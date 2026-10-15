@@ -44,7 +44,7 @@ while IFS= read -r url; do
     *)
       fail=1
       # In dev mode Craft's error page carries the exception; show its first lines.
-      "${fetch[@]}" "$url" | sed -e 's/<[^>]*>/ /g' | grep -iE 'exception|error|undefined|not found' | head -n 3 | sed 's/^/      /' || true
+      { "${fetch[@]}" "$url" | sed -e 's/<[^>]*>/ /g' | grep -iE 'exception|error|undefined|not found' | head -n 3 | sed 's/^/      /'; } 2>/dev/null || true
       ;;
   esac
 done <<< "$urls"
@@ -52,6 +52,11 @@ done <<< "$urls"
 after="$(log_marker)"
 if [ "$after" -gt "$before" ]; then
   new="$(log_lines | tail -n "+$((before + 1))" | grep -E '\[(error|critical)\]|\[(web|console)\.(ERROR|CRITICAL)\]' || true)"
+  if [ -n "${IGNORE_LOG_PATTERN:-}" ] && [ -n "$new" ]; then
+    ignored="$(printf '%s\n' "$new" | grep -cE "$IGNORE_LOG_PATTERN" || true)"
+    [ "$ignored" -gt 0 ] && echo "::warning::$ignored Craft error line(s) ignored by pattern: $IGNORE_LOG_PATTERN"
+    new="$(printf '%s\n' "$new" | grep -vE "$IGNORE_LOG_PATTERN" || true)"
+  fi
   if [ -n "$new" ]; then
     echo "::error::Craft logged errors during the crawl"
     echo "$new" | head -n 50

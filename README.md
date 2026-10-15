@@ -16,6 +16,10 @@ never touches the host. Only the snapshot job and the deploy step differ per hos
 5. `craft migrate/all`, `craft project-config/apply`, `craft clear-caches/all`
 6. Crawl: every URL in `sitemap.xml` (capped by `crawl-limit`), fail on any non-2xx/3xx, then fail on new `[error]` lines in Craft's log
 
+Inputs worth knowing: `environment` (default `staging`), `extra-env` (site secrets appended to `.env`,
+e.g. read-only S3 credentials so image transforms work), `ignore-log-pattern` (regex for error lines
+that are environmental in CI, such as `ImageTransformException` when no asset credentials are given).
+
 Not yet: screenshots, link check, control panel smoke test, the Claude Code fix job. They come
 after the first pilot runs green.
 
