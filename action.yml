@@ -41,7 +41,7 @@ runs:
         key="${SECURITY_KEY:-$(openssl rand -hex 32)}"
         {
           echo "CRAFT_ENVIRONMENT=dev"
-          echo "CRAFT_DEV_MODE=true"
+          echo "CRAFT_DEV_MODE=false"
           echo "CRAFT_ALLOW_ADMIN_CHANGES=false"
           echo "CRAFT_DISALLOW_ROBOTS=true"
           echo "CRAFT_SECURITY_KEY=$key"
