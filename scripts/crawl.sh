@@ -4,6 +4,7 @@
 set -euo pipefail
 
 base="${1:?base url}"
+base="${base%/}"
 limit="${2:-40}"
 fetch=(curl -k -s -L --max-time 60 -A "netlife-craft-ci")
 probe=(curl -k -s -o /dev/null -w '%{http_code} %{time_total}\n' --max-time 60 -A "netlife-craft-ci")

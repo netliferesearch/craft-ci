@@ -92,7 +92,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        url="$(grep ^PRIMARY_SITE_URL= .env | cut -d= -f2-)"
+        url="$(grep ^PRIMARY_SITE_URL= .env | tail -n1 | cut -d= -f2-)"
         ddev craft install/craft --interactive=0 \
           --username=ci --email=ci@example.test --password="$(openssl rand -hex 12)" \
           --site-name=CI --site-url="$url" --language=nb-NO
@@ -111,7 +111,7 @@ runs:
         CRAWL_LIMIT: ${{ inputs.crawl-limit }}
       run: |
         set -euo pipefail
-        url="$(grep ^PRIMARY_SITE_URL= .env | cut -d= -f2-)"
+        url="$(grep ^PRIMARY_SITE_URL= .env | tail -n1 | cut -d= -f2-)"
         bash "$GITHUB_ACTION_PATH/scripts/crawl.sh" "$url" "$CRAWL_LIMIT"
 
     - name: Craft log on failure
