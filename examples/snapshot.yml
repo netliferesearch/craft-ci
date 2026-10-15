@@ -31,8 +31,8 @@ jobs:
           SSH_USER: ${{ secrets.STAGING_SSH_USER }}
           SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
           SCRUB_TRUNCATE: ""
-          DO_SPACES_BUCKET: ${{ vars.SPACES_BUCKET }}
-          DO_SPACES_REGION: ${{ vars.SPACES_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_WRITE_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_WRITE_SECRET }}
+          DO_SPACES_BUCKET: netlife-craft-snapshots
+          DO_SPACES_REGION: fra1
+          AWS_ACCESS_KEY_ID: ${{ secrets.SNAPSHOT_WRITE_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SNAPSHOT_WRITE_SECRET }}
         run: bash scripts/snapshot.sh

@@ -10,5 +10,5 @@ jobs:
       - uses: netliferesearch/craft-ci@v1
         with:
           snapshot-key: snapshots/CHANGE-ME/latest.sql.gz
-          spaces-key: ${{ secrets.SPACES_KEY }}
-          spaces-secret: ${{ secrets.SPACES_SECRET }}
+          spaces-key: ${{ secrets.SNAPSHOT_READ_KEY }}
+          spaces-secret: ${{ secrets.SNAPSHOT_READ_SECRET }}

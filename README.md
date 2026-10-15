@@ -33,22 +33,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: netliferesearch/craft-ci@v1
         with:
-          snapshot-key: snapshots/nch/latest.sql.gz
-          spaces-key: ${{ secrets.SPACES_KEY }}
-          spaces-secret: ${{ secrets.SPACES_SECRET }}
+          snapshot-key: snapshots/<slug>/latest.sql.gz
+          spaces-key: ${{ secrets.SNAPSHOT_READ_KEY }}
+          spaces-secret: ${{ secrets.SNAPSHOT_READ_SECRET }}
 ```
 
-Organization secrets: `SPACES_KEY`, `SPACES_SECRET` (read access to the snapshots bucket).
-Organization variables: `SPACES_BUCKET` (default `netlife-previews`), `SPACES_REGION` (default `fra1`).
+This repo is public on purpose: it holds a generic action and scripts, no secrets and no client
+data, so site repos in both GitHub organizations can use it without any access settings.
 
-If this repo is private, allow other repos in the org to use it:
-Settings → Actions → General → Access → "Accessible from repositories in the organization".
+## Bucket and keys
+
+One DigitalOcean Spaces bucket, `netlife-craft-snapshots` in `fra1`, private, no CDN, with a
+lifecycle rule that deletes the dated copies after 14 days (`latest.sql.gz` is rewritten nightly).
+Two access keys, both scoped to that bucket:
+
+| Key | Scope | GitHub secrets (in both orgs) | Used by |
+| --- | --- | --- | --- |
+| read | read-only | `SNAPSHOT_READ_KEY`, `SNAPSHOT_READ_SECRET`, all repos | the verify action on every PR |
+| write | read/write | `SNAPSHOT_WRITE_KEY`, `SNAPSHOT_WRITE_SECRET`, restricted to the site repos that run the snapshot job | the nightly snapshot workflow |
 
 ## Snapshot job
 
 `scripts/snapshot.sh` dumps a staging database, restores it into a throwaway MySQL, applies
 `scripts/scrub.sql`, dumps again and uploads `snapshots/<slug>/latest.sql.gz`. It runs as a
-GitHub Actions workflow in the site repo (`examples/snapshot.yml`), nightly.
+nightly GitHub Actions workflow in each site repo (`examples/snapshot.yml`), with the staging
+credentials as that repo's secrets, the same pattern as craft-cloud-remote-backups. Logs and
+credentials stay in the private site repo; this repo only provides the script.
+
+Per-site secrets: `STAGING_DB_HOST`, `STAGING_DB_NAME`, `STAGING_DB_USER`, `STAGING_DB_PASSWORD`,
+and for Forge and Servebolt sites `STAGING_SSH_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`.
 
 How it reaches the staging database depends on the host:
 

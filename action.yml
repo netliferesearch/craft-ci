@@ -3,14 +3,14 @@ description: Boot a Craft CMS site in DDEV with a scrubbed snapshot, run migrati
 
 inputs:
   snapshot-key:
-    description: Key of a scrubbed .sql.gz in the bucket, e.g. snapshots/nch/latest.sql.gz. Empty means a fresh install from project config.
+    description: Key of a scrubbed .sql.gz in the bucket, e.g. snapshots/example/latest.sql.gz. Empty means a fresh install from project config.
     default: ""
   spaces-key:
     default: ""
   spaces-secret:
     default: ""
   spaces-bucket:
-    default: netlife-previews
+    default: netlife-craft-snapshots
   spaces-region:
     default: fra1
   build:
