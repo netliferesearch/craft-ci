@@ -106,13 +106,42 @@ How it reaches the staging database depends on the host:
 
 Set `SSH_HOST` and the script opens the tunnel; leave it empty and it connects directly.
 
+## Back-merge to develop
+
+Sites that keep a long-lived `develop` branch next to `main` call the reusable workflow
+`.github/workflows/backmerge.yml` on every push to `main`. It merges `main` into `develop` and pushes:
+a fast-forward when `develop` has nothing of its own, a merge commit otherwise, nothing when `develop`
+already contains `main`. On a conflict it aborts, opens one PR "Back-merge main" from `main` into
+`develop` (never a second one while that is open) and fails the run so someone resolves it. If the
+target branch does not exist the run fails with that message and opens nothing.
+
+```yaml
+# .github/workflows/backmerge.yml
+name: Back-merge
+on:
+  push:
+    branches: [main]
+jobs:
+  backmerge:
+    uses: netliferesearch/craft-ci/.github/workflows/backmerge.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
+```
+
+Inputs `source-branch` (default `main`) and `target-branch` (default `develop`). The merge commit is
+authored by `Craft CI <craft-ci@netlife.no>`.
+
 ## Layout
 
 ```
 action.yml              the composite action
 scripts/crawl.sh        sitemap crawl with status and log checks
+scripts/backmerge.sh    merge main into develop and push, used by the reusable workflow
 scripts/snapshot.sh     dump, scrub, upload
 scripts/scrub.sql       anonymization applied to the throwaway copy, never to staging
 examples/verify.yml     caller for a site repo
 examples/snapshot.yml   nightly snapshot workflow for a site repo
+.github/workflows/backmerge.yml  reusable back-merge workflow for site repos
+tests/                  shell tests, run with bash tests/<name>.test.sh
 ```

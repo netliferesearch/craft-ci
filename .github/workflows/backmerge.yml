@@ -1,0 +1,63 @@
+# Reusable workflow: merge one branch into another after a push, so a long-lived branch
+# such as develop follows main. Opens a PR when the merge conflicts.
+name: Back-merge
+
+on:
+  workflow_call:
+    inputs:
+      source-branch:
+        description: Branch that was just updated
+        type: string
+        default: main
+      target-branch:
+        description: Branch that should follow it
+        type: string
+        default: develop
+
+jobs:
+  backmerge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: netliferesearch/craft-ci
+          ref: v1
+          path: .craft-ci
+
+      - name: Merge and push
+        shell: bash
+        env:
+          SOURCE: ${{ inputs.source-branch }}
+          TARGET: ${{ inputs.target-branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          code=0
+          bash .craft-ci/scripts/backmerge.sh "$SOURCE" "$TARGET" || code=$?
+          case "$code" in
+            0) ;;
+            2)
+              open="$(gh pr list --base "$TARGET" --head "$SOURCE" --state open --json number --jq length)"
+              if [ "$open" = "0" ]; then
+                gh pr create --base "$TARGET" --head "$SOURCE" --title "Back-merge $SOURCE" \
+                  --body "Automatic back-merge of $SOURCE into $TARGET conflicted. Resolve and merge."
+              else
+                echo "a back-merge PR is already open"
+              fi
+              echo "::error::Back-merge of $SOURCE into $TARGET conflicted; see the open PR"
+              exit 1 ;;
+            3)
+              echo "::error::target branch $TARGET not found on origin"
+              exit 1 ;;
+            *)
+              echo "::error::backmerge.sh failed with exit $code"
+              exit 1 ;;
+          esac
