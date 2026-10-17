@@ -16,7 +16,7 @@ assert_eq() { # expected actual label
 # A bare origin at $T/origin.git and a clone at $T/work with main (a.txt) and develop pushed.
 make_repo() {
   T="$(mktemp -d)"
-  git init -q --bare "$T/origin.git"
+  git init -q --bare "$T/origin.git" && git -C "$T/origin.git" symbolic-ref HEAD refs/heads/main
   git init -q -b main "$T/work"
   ( cd "$T/work" && echo one > a.txt && git add a.txt && git commit -q -m one \
     && git remote add origin "$T/origin.git" && git push -q -u origin main \
