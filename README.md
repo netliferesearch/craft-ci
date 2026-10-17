@@ -14,11 +14,18 @@ never touches the host. Only the snapshot job and the deploy step differ per hos
 3. `composer install`, and `npm ci && npm run build` when `package.json` has a `build` script
 4. Snapshot import from the bucket when `snapshot-key` is set, otherwise a fresh install from project config
 5. `craft migrate/all`, `craft project-config/apply`, `craft clear-caches/all`
-6. Crawl: every URL in `sitemap.xml` (capped by `crawl-limit`), fail on any non-2xx/3xx, then fail on new `[error]` lines in Craft's log
+6. If `commit-project-config` is on and the migrations changed `config/project`, commit that change back to the PR branch with `push-token`, so a dependency update PR carries the project config it produced. Verify runs again on that commit
+7. Crawl: every URL in `sitemap.xml` (capped by `crawl-limit`), fail on any non-2xx/3xx, then fail on new `[error]` lines in Craft's log
 
 Inputs worth knowing: `environment` (default `staging`), `extra-env` (site secrets appended to `.env`,
 e.g. read-only S3 credentials so image transforms work), `ignore-log-pattern` (regex for error lines
-that are environmental in CI, such as `ImageTransformException` when no asset credentials are given).
+that are environmental in CI, such as `ImageTransformException` when no asset credentials are given),
+`commit-project-config` (default `false`) with `push-token`. The push token must be one that triggers
+workflows, a personal token or a GitHub App token, because a commit pushed with `GITHUB_TOKEN` gets no
+check and branch protection would then block the merge. Without a token, a project config change prints
+the diff and fails the check, so it is never merged silently. PRs from forks are never pushed to. The
+commit is authored by `Craft CI <craft-ci@netlife.no>`; Renovate's preset lists that address in
+`gitIgnoredAuthors` so the commit does not count as a human edit.
 
 Not yet: screenshots, link check, control panel smoke test, the Claude Code fix job. They come
 after the first pilot runs green.
@@ -138,6 +145,7 @@ authored by `Craft CI <craft-ci@netlife.no>`.
 action.yml              the composite action
 scripts/crawl.sh        sitemap crawl with status and log checks
 scripts/backmerge.sh    merge main into develop and push, used by the reusable workflow
+scripts/commit-project-config.sh  commit config/project changes back to the PR branch
 scripts/snapshot.sh     dump, scrub, upload
 scripts/scrub.sql       anonymization applied to the throwaway copy, never to staging
 examples/verify.yml     caller for a site repo

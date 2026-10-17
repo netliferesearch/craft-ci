@@ -31,6 +31,17 @@ inputs:
   ignore-log-pattern:
     description: Extended regex. Craft log error lines matching it do not fail the crawl, for known-environmental errors such as ImageTransformException when CI has no asset credentials.
     default: ""
+  commit-project-config:
+    description: After migrations, commit any change under config/project back to the PR branch, so a dependency update PR carries the project config it produced. Needs push-token.
+    default: "false"
+  push-token:
+    description: Token used to push the project config commit. Must trigger workflows (a PAT or an App token, not GITHUB_TOKEN), so verify runs again on that commit. Without it a project config change fails the check.
+    default: ""
+
+outputs:
+  project-config-changed:
+    description: "true when the action committed project config back to the PR branch"
+    value: ${{ steps.project-config.outputs.changed }}
 
 runs:
   using: composite
@@ -117,6 +128,27 @@ runs:
         ddev craft migrate/all --interactive=0
         ddev craft project-config/apply --interactive=0
         ddev craft clear-caches/all
+
+    - name: Commit project config to the PR branch
+      id: project-config
+      if: inputs.commit-project-config == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        BASE_REPO: ${{ github.repository }}
+        PUSH_TOKEN: ${{ inputs.push-token }}
+      run: |
+        set -euo pipefail
+        PUSH_URL=""
+        if [ -n "$PUSH_TOKEN" ]; then
+          echo "::add-mask::$PUSH_TOKEN"
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${BASE_REPO}.git"
+        fi
+        export PUSH_URL
+        out="$(bash "$GITHUB_ACTION_PATH/scripts/commit-project-config.sh" | tee /dev/stderr)"
+        changed="$(printf '%s\n' "$out" | sed -n 's/^changed=//p' | tail -n1)"
+        echo "changed=${changed:-false}" >> "$GITHUB_OUTPUT"
 
     - name: Crawl
       shell: bash
