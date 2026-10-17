@@ -162,6 +162,11 @@ PRs will appear authored by Svale. That is acceptable for the pilot and goes awa
 If the Feedsystem org has fine-grained tokens disabled or requires approval that cannot be had this
 week, fall back to a classic token with `repo` and `workflow` scopes, same storage, same expiry.
 
+Outcome 2026-10-17: Feedsystem does not allow fine-grained tokens, so the pilot runs on a classic
+token. That token reaches every repository Svale can, in both organizations, and its copy on nch
+(`RENOVATE_PUSH_TOKEN`) is readable by anyone with write access to nch through a workflow. Accepted
+for the pilot because the App replaces it within days; the token is revoked when the App is live.
+
 ### Project config commit in CI
 
 New, optional behaviour in the craft-ci verify action, off by default:
