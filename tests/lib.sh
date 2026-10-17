@@ -6,6 +6,7 @@ export GIT_AUTHOR_NAME=Tester GIT_AUTHOR_EMAIL=tester@example.test
 export GIT_COMMITTER_NAME=Tester GIT_COMMITTER_EMAIL=tester@example.test
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 PASS=0; FAIL=0; CURRENT=""; T=""
+REAL_GIT="$(command -v git)"
 
 assert_eq() { # expected actual label
   if [ "$1" != "$2" ]; then

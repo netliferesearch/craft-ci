@@ -25,7 +25,10 @@ workflows, a personal token or a GitHub App token, because a commit pushed with 
 check and branch protection would then block the merge. Without a token, a project config change prints
 the diff and fails the check, so it is never merged silently. PRs from forks are never pushed to. The
 commit is authored by `Craft CI <craft-ci@netlife.no>`; Renovate's preset lists that address in
-`gitIgnoredAuthors` so the commit does not count as a human edit.
+`gitIgnoredAuthors` so the commit does not count as a human edit. Changes that only touch `dateModified`
+lines are ignored, and if the branch already ends in such a commit and config changes again, the step
+fails instead of pushing, so a site where Craft rewrites project config on every run cannot loop. The
+step applies to every PR that runs verify, including human ones such as a `develop` to `main` release.
 
 Not yet: screenshots, link check, control panel smoke test, the Claude Code fix job. They come
 after the first pilot runs green.
@@ -119,8 +122,11 @@ Sites that keep a long-lived `develop` branch next to `main` call the reusable w
 `.github/workflows/backmerge.yml` on every push to `main`. It merges `main` into `develop` and pushes:
 a fast-forward when `develop` has nothing of its own, a merge commit otherwise, nothing when `develop`
 already contains `main`. On a conflict it aborts, opens one PR "Back-merge main" from `main` into
-`develop` (never a second one while that is open) and fails the run so someone resolves it. If the
-target branch does not exist the run fails with that message and opens nothing.
+`develop` (never a second one while that is open) and fails the run so someone resolves it, locally
+on a branch off `develop` since `main` is protected. If the target branch does not exist the run fails
+with that message and opens nothing. Opening the PR needs "Allow GitHub Actions to create and approve
+pull requests" in the repository's Actions settings; without it the run says so and the PR must be
+opened by hand.
 
 ```yaml
 # .github/workflows/backmerge.yml
