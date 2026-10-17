@@ -73,4 +73,12 @@ test_conflict() {
   assert_eq "$before" "$(origin_rev "$HEAD_BRANCH")" "nothing pushed"
 }
 
+test_new_file_included() {
+  make_pr_checkout
+  printf 'schemaVersion: 1.0.0\n' > "$T/work/config/project/plugins-newplugin.yaml"
+  run_script
+  assert_eq 0 "$CODE" "exit code"
+  assert_eq "schemaVersion: 1.0.0" "$(git -C "$T/origin.git" show "$HEAD_BRANCH:config/project/plugins-newplugin.yaml" 2>/dev/null)" "new file pushed"
+}
+
 run_tests

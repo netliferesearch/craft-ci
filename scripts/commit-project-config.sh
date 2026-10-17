@@ -37,6 +37,7 @@ if [ -z "$PUSH_URL" ]; then
 fi
 
 # shellcheck disable=SC2086
+git add -A -- $PATHS
 git stash push -q -- $PATHS
 git fetch -q origin "$HEAD_REF"
 git checkout -q -B "$HEAD_REF" FETCH_HEAD
@@ -47,6 +48,8 @@ if ! git stash pop -q; then
   exit 6
 fi
 
-git commit -q -am "Update project config after dependency update"
+# shellcheck disable=SC2086
+git add -A -- $PATHS
+git commit -q -m "Update project config after dependency update"
 git push -q "$PUSH_URL" "HEAD:refs/heads/$HEAD_REF"
 echo "changed=true"
