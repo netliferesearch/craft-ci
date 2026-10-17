@@ -15,6 +15,8 @@ test_action_yml_structure() {
       IO.popen(["bash","-n"], "w") { |io| io.write(s["run"]) }
       abort "step #{i} (#{s["name"]}) fails bash -n" unless $?.success?
     end
+    env = a["runs"]["steps"].find { |s| s["name"] == "Environment file" }
+    abort "verify must allow admin changes so update migrations can write project config" unless env["run"].include?("CRAFT_ALLOW_ADMIN_CHANGES=true")
     step = a["runs"]["steps"].find { |s| s["id"] == "project-config" }
     abort "no project-config step" unless step
     abort "project-config step must be gated on the input and pull_request" unless step["if"].include?("commit-project-config == '"'"'true'"'"'") && step["if"].include?("pull_request")

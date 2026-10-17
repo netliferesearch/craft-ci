@@ -184,8 +184,13 @@ New, optional behaviour in the craft-ci verify action, off by default:
   confirms that commits made with the runner's own token are not treated that way, so Renovate keeps
   rebasing its branch. If they are, set Renovate's git author to match.
 
-Note that verify runs with `allowAdminChanges=false`. Migrations still update project config (that is
-allowed), so schema version bumps after a Craft or plugin update are what this step catches.
+Verify runs migrations with `allowAdminChanges=true`. Found on the first Craft security PR
+(2026-10-17): with admin changes off, Craft runs project config read-only and the 5.11 migration
+`update_field_layouts` fails with "Changes to the project config are not possible while in read-only
+mode". Craft's own upgrade guide expects updates to run where admin changes are allowed and the YAML to
+be committed; verify does that, and production applies the committed YAML read-only as before. Crawl
+behaviour is unaffected: devMode and the environment name are what make the site behave as in
+production.
 
 ### Back-merge to develop
 

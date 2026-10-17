@@ -65,7 +65,10 @@ runs:
           echo "CRAFT_ENVIRONMENT=$CRAFT_ENV"
           echo "ENVIRONMENT=$CRAFT_ENV"
           echo "CRAFT_DEV_MODE=false"
-          echo "CRAFT_ALLOW_ADMIN_CHANGES=false"
+          # Update migrations write to project config (schema versions, field layouts). With admin
+          # changes off Craft runs project config read-only and such a migration fails. Verify allows
+          # them, commits the resulting YAML back to the PR, and production applies that YAML read-only.
+          echo "CRAFT_ALLOW_ADMIN_CHANGES=true"
           echo "CRAFT_DISALLOW_ROBOTS=true"
           echo "CRAFT_SECURITY_KEY=$key"
           echo "CRAFT_APP_ID=CraftCMS--ci"
