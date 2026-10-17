@@ -225,13 +225,21 @@ Forge push-to-deploy on `main` already runs: git pull, composer install, npm ins
 clear caches, migrate, project-config apply. Changes recommended before automerge goes on, Svale's
 call because they touch Forge:
 
-- `set -e` at the top of the deploy script, so a failing command stops the deploy and Forge marks it
-  failed. Today a failed migration does not stop the lines after it.
-- `php craft db/backup` before `migrate/all`, so an unattended deploy always has a restore point.
+- `set -euo pipefail` at the top of the deploy script, so a failing command stops the deploy and Forge
+  marks it failed. Today a failed migration does not stop the lines after it. Forge sets every
+  `FORGE_*` variable the script uses, so `-u` is safe.
+- No separate `db/backup` line. `craft migrate/all` already backs up the database before it applies
+  any migration (`backupOnUpdate`, default on, honoured without a prompt in non-interactive mode) and
+  restores it when a migration fails; verify's logs show both. Craft keeps at most `maxBackups` files
+  in `storage/backups` (default 20) and deletes the oldest on each new backup, so they do not pile up.
+  nch overrides neither setting. A deploy without migrations takes no backup, which is fine: it
+  changed no data.
 - Deployment notifications to Slack on the nch site (site dashboard, Notifications tab). Forge also
   emails the site's failure recipients by default; make sure that list has someone on it.
-- Forge's post-deploy health check on the site, pointed at the front page. Forge pings it from three
-  regions after each deploy and notifies on failure.
+- Forge's post-deploy health check, pointed at `https://nordiccircularhotspot.org/actions/app/health-check`.
+  That is Craft's own endpoint: 200 only when Craft boots and reaches the database, sent with
+  `no-cache`, so it cannot be answered from a cache the way the home page could. Forge pings it from
+  three regions after each deploy and notifies on failure.
 
 Forge's API also exposes deployment history with status and output per deployment, and a deploy
 webhook that posts the status and commit to a URL after each deploy. Neither is needed for the pilot.
