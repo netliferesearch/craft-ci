@@ -1,7 +1,14 @@
 # Copy to .github/workflows/verify.yml in the site repo. Settings come from .netlife/fleet.json.
+# The secret lines pass names only; the values live in each repo's own secrets.
 name: Verify
 on: [pull_request]
 jobs:
   verify:
     uses: netliferesearch/craft-ci/.github/workflows/verify.yml@v1
-    secrets: inherit
+    with:
+      app-client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+    secrets:
+      SNAPSHOT_READ_KEY: ${{ secrets.SNAPSHOT_READ_KEY }}
+      SNAPSHOT_READ_SECRET: ${{ secrets.SNAPSHOT_READ_SECRET }}
+      RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+      RENOVATE_PUSH_TOKEN: ${{ secrets.RENOVATE_PUSH_TOKEN }}

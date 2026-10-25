@@ -21,8 +21,21 @@ test_verify_is_callable() {
   assert_eq true "$(yq_ruby 'puts on.keys == ["workflow_call"]' 2>&1)" "workflow_call is the only trigger"
 }
 
-test_verify_no_secret_decl() {
-  assert_eq false "$(yq_ruby 'puts on["workflow_call"].key?("secrets")' 2>&1)" "no declared secrets"
+test_verify_declares_secrets() {
+  assert_eq "RENOVATE_APP_PRIVATE_KEY RENOVATE_PUSH_TOKEN SNAPSHOT_READ_KEY SNAPSHOT_READ_SECRET" "$(yq_ruby 'puts on["workflow_call"]["secrets"].keys.sort.join(" ")' 2>&1)" "declared secrets"
+}
+
+test_snapshot_declares_secrets() {
+  assert_eq "SNAPSHOT_WRITE_KEY SNAPSHOT_WRITE_SECRET SOURCE_DB_HOST SOURCE_DB_NAME SOURCE_DB_PASSWORD SOURCE_DB_USER SOURCE_SSH_HOST SOURCE_SSH_KEY SOURCE_SSH_USER" "$(yq_ruby 'puts on["workflow_call"]["secrets"].keys.sort.join(" ")' .github/workflows/snapshot.yml 2>&1)" "declared secrets"
+}
+
+test_examples_map_every_secret() {
+  local name
+  for name in verify snapshot; do
+    assert_eq "" "$(ruby -ryaml -e 'w = YAML.load_file(ARGV[0]); e = YAML.load_file(ARGV[1]); on = w[true] || w["on"]; decl = on["workflow_call"]["secrets"].keys; got = e["jobs"].values.first["secrets"]; puts "x" unless got.is_a?(Hash) && (decl - got.keys).empty? && got.keys.sort == decl.sort' ".github/workflows/$name.yml" "examples/$name.yml" 2>&1)" "$name example maps every declared secret"
+    assert_eq 1 "$(grep -c -E '^[[:space:]]+uses: netliferesearch/craft-ci/' "examples/$name.yml")" "$name example calls the reusable workflow"
+    assert_eq 0 "$(grep -c 'secrets: inherit' "examples/$name.yml")" "$name example has no secrets: inherit"
+  done
 }
 
 test_verify_inputs_and_job() {

@@ -1,5 +1,6 @@
 # Copy to .github/workflows/snapshot.yml in the site repo. Nightly scrubbed production snapshot.
 # The schedule sits here because a reusable workflow cannot carry one.
+# The secret lines pass names only; the values live in each repo's own secrets.
 name: Snapshot
 on:
   schedule:
@@ -8,4 +9,13 @@ on:
 jobs:
   snapshot:
     uses: netliferesearch/craft-ci/.github/workflows/snapshot.yml@v1
-    secrets: inherit
+    secrets:
+      SOURCE_DB_HOST: ${{ secrets.SOURCE_DB_HOST }}
+      SOURCE_DB_NAME: ${{ secrets.SOURCE_DB_NAME }}
+      SOURCE_DB_USER: ${{ secrets.SOURCE_DB_USER }}
+      SOURCE_DB_PASSWORD: ${{ secrets.SOURCE_DB_PASSWORD }}
+      SOURCE_SSH_HOST: ${{ secrets.SOURCE_SSH_HOST }}
+      SOURCE_SSH_USER: ${{ secrets.SOURCE_SSH_USER }}
+      SOURCE_SSH_KEY: ${{ secrets.SOURCE_SSH_KEY }}
+      SNAPSHOT_WRITE_KEY: ${{ secrets.SNAPSHOT_WRITE_KEY }}
+      SNAPSHOT_WRITE_SECRET: ${{ secrets.SNAPSHOT_WRITE_SECRET }}

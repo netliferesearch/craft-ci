@@ -1,5 +1,6 @@
 # Reusable workflow: dump the site's source database, scrub a copy, upload snapshots/<slug>/latest.sql.gz.
-# Settings come from the site's .netlife/fleet.json; callers pass `secrets: inherit`.
+# Settings come from the site's .netlife/fleet.json. Callers pass the secrets by name, because
+# `secrets: inherit` only works inside one organization and the fleet spans two.
 name: Snapshot Craft site
 
 on:
@@ -9,6 +10,34 @@ on:
         description: Space-separated tables to empty after scrubbing, for site-specific tables
         type: string
         default: ""
+    secrets:
+      SOURCE_DB_HOST:
+        description: Source database host
+        required: false
+      SOURCE_DB_NAME:
+        description: Source database name
+        required: false
+      SOURCE_DB_USER:
+        description: Source database user (SELECT only)
+        required: false
+      SOURCE_DB_PASSWORD:
+        description: Source database password
+        required: false
+      SOURCE_SSH_HOST:
+        description: SSH host for the source server (Forge, Servebolt)
+        required: false
+      SOURCE_SSH_USER:
+        description: SSH user for the source server
+        required: false
+      SOURCE_SSH_KEY:
+        description: SSH private key for the source server
+        required: false
+      SNAPSHOT_WRITE_KEY:
+        description: Spaces write key for uploading the snapshot
+        required: false
+      SNAPSHOT_WRITE_SECRET:
+        description: Spaces write secret for uploading the snapshot
+        required: false
 
 jobs:
   snapshot:

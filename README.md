@@ -83,18 +83,19 @@ plus the called workflow's job `verify`.
 
 ### Secrets
 
-The callers pass `secrets: inherit`, so the secrets the repo can see reach the reusable workflows.
-Set the shared ones as organization secrets scoped to the right repos.
+The callers pass secrets by name, because GitHub honours `secrets: inherit` only when caller and called
+workflow are in the same organization, and the fleet spans netliferesearch and Feedsystem. Set the shared
+ones as organization secrets scoped to the right repos.
 
 | Workflow | Reads |
 | --- | --- |
-| verify | `SNAPSHOT_READ_KEY`, `SNAPSHOT_READ_SECRET`. To push project config changes: `RENOVATE_APP_PRIVATE_KEY` with the variable `RENOVATE_APP_CLIENT_ID` (an app token is minted when the variable is set), otherwise `RENOVATE_PUSH_TOKEN` |
+| verify | `SNAPSHOT_READ_KEY`, `SNAPSHOT_READ_SECRET`. To push project config changes: `RENOVATE_APP_PRIVATE_KEY` with the `app-client-id` input, filled from the variable `RENOVATE_APP_CLIENT_ID` (an app token is minted when it is set), otherwise `RENOVATE_PUSH_TOKEN` |
 | snapshot | `SNAPSHOT_WRITE_KEY`, `SNAPSHOT_WRITE_SECRET`, `SOURCE_DB_HOST`, `SOURCE_DB_NAME`, `SOURCE_DB_USER`, `SOURCE_DB_PASSWORD`, and for Forge and Servebolt `SOURCE_SSH_HOST`, `SOURCE_SSH_USER`, `SOURCE_SSH_KEY` |
 | back-merge | none, it uses the workflow's own `GITHUB_TOKEN` |
 
-The reusable verify workflow has two inputs a caller can set with `with:`: `extra-env` (lines appended
-to `.env`, for site secrets such as read-only S3 credentials) and `project-config-commit` (default
-`true`). The snapshot workflow has `scrub-truncate`, a space-separated list of tables to empty after the
+The reusable verify workflow has three inputs a caller can set with `with:`: `extra-env` (lines appended
+to `.env`, for site secrets such as read-only S3 credentials), `project-config-commit` (default
+`true`) and `app-client-id` (pass the variable `RENOVATE_APP_CLIENT_ID`; empty means `RENOVATE_PUSH_TOKEN` is used). The snapshot workflow has `scrub-truncate`, a space-separated list of tables to empty after the
 scrub. Back-merge has `source-branch` and `target-branch`; empty means the manifest's branches.
 
 ### Using the action directly
@@ -180,7 +181,7 @@ S3-compatible bucket such as Spaces) are an alternative source that keeps CI awa
 snapshot job would download the newest backup file instead of dumping over SSH. Not built yet; see
 the fleet design.
 
-Per-site secrets (read through `secrets: inherit`): `SOURCE_DB_HOST`, `SOURCE_DB_NAME`, `SOURCE_DB_USER`, `SOURCE_DB_PASSWORD`,
+Per-site secrets (passed by name from the caller): `SOURCE_DB_HOST`, `SOURCE_DB_NAME`, `SOURCE_DB_USER`, `SOURCE_DB_PASSWORD`,
 and for Forge and Servebolt sites `SOURCE_SSH_HOST`, `SOURCE_SSH_USER`, `SOURCE_SSH_KEY`.
 
 Give the job its own MySQL user with `SELECT` only. The dump runs with

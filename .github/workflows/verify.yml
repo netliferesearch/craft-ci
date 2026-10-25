@@ -1,5 +1,6 @@
 # Reusable workflow: boot the site in DDEV with a scrubbed snapshot, run migrations, crawl the sitemap.
-# Settings come from the site's .netlife/fleet.json; callers pass `secrets: inherit`.
+# Settings come from the site's .netlife/fleet.json. Callers pass the secrets by name, because
+# `secrets: inherit` only works inside one organization and the fleet spans two.
 name: Verify Craft site
 
 on:
@@ -13,6 +14,23 @@ on:
         description: Commit project config changed by migrations back to the PR branch
         type: boolean
         default: true
+      app-client-id:
+        description: Client ID of the GitHub App that mints the push token; empty means use RENOVATE_PUSH_TOKEN
+        type: string
+        default: ""
+    secrets:
+      SNAPSHOT_READ_KEY:
+        description: Spaces read key for the snapshot
+        required: false
+      SNAPSHOT_READ_SECRET:
+        description: Spaces read secret for the snapshot
+        required: false
+      RENOVATE_APP_PRIVATE_KEY:
+        description: Private key of the GitHub App that mints the push token
+        required: false
+      RENOVATE_PUSH_TOKEN:
+        description: Fallback token for pushing project config changes
+        required: false
 
 jobs:
   verify:
@@ -44,10 +62,10 @@ jobs:
 
       - name: App token
         id: app-token
-        if: vars.RENOVATE_APP_CLIENT_ID != ''
+        if: inputs.app-client-id != ''
         uses: actions/create-github-app-token@v3.3.0
         with:
-          client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+          client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
