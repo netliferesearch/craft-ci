@@ -43,4 +43,11 @@ test_backmerge_defaults_empty() {
   assert_eq "" "$(yq_ruby 'puts on["workflow_call"]["inputs"]["source-branch"]["default"]' .github/workflows/backmerge.yml 2>&1)" "source-branch default"
 }
 
+test_examples_lint() {
+  local out code=0
+  out="$(actionlint examples/*.yml 2>&1)" || code=$?
+  assert_eq 0 "$code" "actionlint examples ($out)"
+  assert_eq nch "$(jq -r '.slug' examples/fleet.json 2>&1)" "example manifest slug"
+}
+
 run_tests

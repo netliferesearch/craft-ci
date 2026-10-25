@@ -1,0 +1,12 @@
+# Copy to .github/workflows/backmerge.yml in the site repo. Only for sites with a develop branch;
+# without one the run ends with a notice. Branch names come from .netlife/fleet.json.
+name: Back-merge
+on:
+  push:
+    branches: [main]
+jobs:
+  backmerge:
+    uses: netliferesearch/craft-ci/.github/workflows/backmerge.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
