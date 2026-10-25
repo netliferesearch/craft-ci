@@ -38,4 +38,9 @@ test_snapshot_has_service() {
   assert_eq mysql:8.0 "$(yq_ruby 'puts doc["jobs"]["snapshot"]["services"]["mysql"]["image"]' .github/workflows/snapshot.yml 2>&1)" "mysql service image"
 }
 
+test_backmerge_defaults_empty() {
+  assert_eq "" "$(yq_ruby 'puts on["workflow_call"]["inputs"]["target-branch"]["default"]' .github/workflows/backmerge.yml 2>&1)" "target-branch default"
+  assert_eq "" "$(yq_ruby 'puts on["workflow_call"]["inputs"]["source-branch"]["default"]' .github/workflows/backmerge.yml 2>&1)" "source-branch default"
+}
+
 run_tests
