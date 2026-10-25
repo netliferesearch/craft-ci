@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/netliferesearch/craft-ci/main/fleet.schema.json",
+  "$id": "https://raw.githubusercontent.com/netliferesearch/craft-ci/v1/fleet.schema.json",
   "title": "Netlife fleet manifest",
   "description": "Per-site manifest at .netlife/fleet.json. Every key is optional; scripts/manifest.sh applies the defaults.",
   "type": "object",

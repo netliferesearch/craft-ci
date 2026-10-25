@@ -78,6 +78,14 @@ test_develop_absent() {
   grep -q '^BRANCH_DEVELOP=$' "$T/out"; assert_eq 0 $? "BRANCH_DEVELOP line printed empty"
 }
 
+test_develop_probe_failure() {
+  make_repo; git -C "$T/work" remote remove origin
+  export GITHUB_REPOSITORY=Feedsystem/NCH
+  run_in_work "$SCRIPT"
+  assert_eq 4 "$CODE" "exit code"
+  grep -q "probe origin" "$T/out"; assert_eq 0 $? "stderr names the probe"
+}
+
 test_develop_null() { resolve '{"branches":{"develop":null}}'; assert_eq 0 "$CODE" "exit code"; assert_eq "" "$(val BRANCH_DEVELOP)" BRANCH_DEVELOP; }
 
 test_develop_named() {

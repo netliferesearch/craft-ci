@@ -4,7 +4,7 @@
 # Prints: SLUG SNAPSHOT_SOURCE SNAPSHOT_KEY VERIFY_CRAWL_LIMIT VERIFY_IGNORE_LOG_PATTERN
 #         VERIFY_ENVIRONMENT BRANCH_MAIN BRANCH_DEVELOP
 # Exit 0: resolved. Exit 2: the manifest or the derived slug is invalid (reasons on stderr).
-# Exit 3: jq is missing.
+# Exit 3: jq is missing. Exit 4: the git ls-remote probe for develop failed (not just "no such branch").
 # Env: MANIFEST_NO_REMOTE=1 skips the `git ls-remote` probe for a develop branch.
 set -euo pipefail
 
@@ -96,10 +96,17 @@ if [ "$(get '(.branches // {}) | has("develop")')" = true ]; then
   develop="$(get '.branches.develop // ""')"
 elif [ "${MANIFEST_NO_REMOTE:-}" = 1 ]; then
   develop=""
-elif git ls-remote --exit-code --heads origin develop >/dev/null 2>&1; then
-  develop="develop"
 else
-  develop=""
+  probe=0
+  probe_err="$(git ls-remote --exit-code --heads origin develop 2>&1 >/dev/null)" || probe=$?
+  case "$probe" in
+    0) develop="develop" ;;
+    2) develop="" ;;
+    *)
+      echo "manifest: could not probe origin for a develop branch (git ls-remote exited $probe): $probe_err" >&2
+      exit 4
+      ;;
+  esac
 fi
 
 printf 'SLUG=%s\nSNAPSHOT_SOURCE=%s\nSNAPSHOT_KEY=%s\nVERIFY_CRAWL_LIMIT=%s\nVERIFY_IGNORE_LOG_PATTERN=%s\nVERIFY_ENVIRONMENT=%s\nBRANCH_MAIN=%s\nBRANCH_DEVELOP=%s\n' \
