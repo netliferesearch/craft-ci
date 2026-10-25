@@ -1,7 +1,7 @@
 # craft-ci
 
 Shared verification for Netlife's Craft CMS sites. A composite GitHub Action that boots the
-site in DDEV on the runner, seeds it with a scrubbed staging snapshot, runs migrations and
+site in DDEV on the runner, seeds it with a scrubbed production snapshot, runs migrations and
 project config, and crawls the sitemap. Used on every Renovate PR and on any feature PR.
 
 Hosting-neutral: the same action verifies sites on Forge, Servebolt and Craft Cloud, because it
@@ -87,30 +87,44 @@ Two access keys, both scoped to that bucket:
 
 ## Snapshot job
 
-`scripts/snapshot.sh` dumps the source database (staging where one exists, otherwise production
-through a read-only user), restores it into a throwaway MySQL, applies
-`scripts/scrub.sql`, dumps again and uploads `snapshots/<slug>/latest.sql.gz`. It runs as a
-nightly GitHub Actions workflow in each site repo (`examples/snapshot.yml`), with the staging
-credentials as that repo's secrets, the same pattern as craft-cloud-remote-backups. Logs and
-credentials stay in the private site repo; this repo only provides the script.
+`scripts/snapshot.sh` dumps the production database through a read-only user, restores it into a
+throwaway MySQL, applies `scripts/scrub.sql`, dumps again and uploads
+`snapshots/<slug>/latest.sql.gz`. It runs as a nightly GitHub Actions workflow in each site repo
+(`examples/snapshot.yml`), with the database credentials as that repo's secrets, the same pattern as
+craft-cloud-remote-backups. Logs and credentials stay in the private site repo; this repo only
+provides the script.
+
+Production is the source on purpose. Verify is a rehearsal of the deploy: a PR is cut from `main`
+and, when it merges, its migrations and `project-config/apply` run against the production database.
+Only a copy of production makes verify exercise that same path. A staging database can be ahead of
+`main` (schema newer than the code, Craft refuses to boot) or behind it (verify is green on a path
+production never takes). Use staging only for a site that has no production yet. What protects
+personal data is the scrub, so reviewing `scrub.sql` against the site's own tables is a required
+onboarding step, not an optional one.
+
+For Forge sites, Forge's own scheduled database backups (a Business-plan feature, written to an
+S3-compatible bucket such as Spaces) are an alternative source that keeps CI away from the production server entirely: the
+snapshot job would download the newest backup file instead of dumping over SSH. Not built yet; see
+the fleet design.
 
 Per-site secrets: `SOURCE_DB_HOST`, `SOURCE_DB_NAME`, `SOURCE_DB_USER`, `SOURCE_DB_PASSWORD`,
 and for Forge and Servebolt sites `SOURCE_SSH_HOST`, `SOURCE_SSH_USER`, `SOURCE_SSH_KEY`.
 
-When the source is production, give the job its own MySQL user with `SELECT` only. The dump runs
-with `--single-transaction --lock-tables=false --skip-triggers`, so that is all it needs, and
-nothing the job does can write to the source:
+Give the job its own MySQL user with `SELECT` only. The dump runs with
+`--single-transaction --lock-tables=false --skip-triggers`, so that is all it needs, and nothing the
+job does can write to the source. The dump does not lock tables; for a large database, keep the
+schedule at night and look at the server's IO once.
 
 ```sql
 CREATE USER 'snapshot'@'127.0.0.1' IDENTIFIED BY '<password>';
 GRANT SELECT ON <database>.* TO 'snapshot'@'127.0.0.1';
 ```
 
-How it reaches the staging database depends on the host:
+How it reaches the production database depends on the host:
 
 | Host | Reach the database by |
 | --- | --- |
-| Craft Cloud | the public RDS endpoint and the credentials from the Cloud console (same as craft-cloud-remote-backups) |
+| Craft Cloud | the public RDS endpoint and read-only credentials from the Cloud console (same as craft-cloud-remote-backups) |
 | Forge | an SSH tunnel to the server (`SSH_HOST`, `SSH_USER`, `SSH_KEY`), database on localhost |
 | Servebolt | an SSH tunnel the same way |
 
@@ -153,7 +167,7 @@ scripts/crawl.sh        sitemap crawl with status and log checks
 scripts/backmerge.sh    merge main into develop and push, used by the reusable workflow
 scripts/commit-project-config.sh  commit config/project changes back to the PR branch
 scripts/snapshot.sh     dump, scrub, upload
-scripts/scrub.sql       anonymization applied to the throwaway copy, never to staging
+scripts/scrub.sql       anonymization applied to the throwaway copy, never to the source
 examples/verify.yml     caller for a site repo
 examples/snapshot.yml   nightly snapshot workflow for a site repo
 .github/workflows/backmerge.yml  reusable back-merge workflow for site repos

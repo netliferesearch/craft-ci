@@ -66,6 +66,18 @@ migrations and project config.
 
 ## Decided design
 
+### Snapshot source
+
+Production, through a read-only MySQL user and an SSH key restricted to a tunnel, is the default
+source for the snapshot verify imports (decided 2026-10-20; the fleet design said "staging where it
+exists" until then). Verify rehearses the deploy to production, so it must start from production's
+schema version and stored project config. A staging database can be ahead of `main`, in which case
+Craft refuses to boot because the schema is newer than the code, or behind it, in which case verify
+proves a migration path production never takes. Staging is the source only for a site with no
+production yet. The scrub is what protects personal data, so a review of `scrub.sql` against the
+site's tables is part of onboarding. For Forge sites, Forge's scheduled backups in an S3-compatible
+bucket are a candidate source that needs no access to the server from CI; see the fleet design.
+
 ### Branch flow
 
 Agreed with Svale on 2026-10-17:

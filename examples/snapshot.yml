@@ -1,4 +1,4 @@
-# Copy to .github/workflows/snapshot.yml in the site repo. Nightly scrubbed staging snapshot.
+# Copy to .github/workflows/snapshot.yml in the site repo. Nightly scrubbed production snapshot.
 name: Snapshot
 on:
   schedule:
@@ -27,7 +27,7 @@ jobs:
           DB_NAME: ${{ secrets.SOURCE_DB_NAME }}
           DB_USER: ${{ secrets.SOURCE_DB_USER }}
           DB_PASSWORD: ${{ secrets.SOURCE_DB_PASSWORD }}
-          SSH_HOST: ${{ secrets.SOURCE_SSH_HOST }}   # leave empty for Craft Cloud or a directly reachable database
+          SSH_HOST: ${{ secrets.SOURCE_SSH_HOST }}   # Forge and Servebolt tunnel; leave empty for Craft Cloud or a directly reachable database
           SSH_USER: ${{ secrets.SOURCE_SSH_USER }}
           SSH_KEY: ${{ secrets.SOURCE_SSH_KEY }}
           SCRUB_TRUNCATE: ""

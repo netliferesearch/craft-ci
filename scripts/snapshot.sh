@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dump a staging database, scrub a copy, upload snapshots/<slug>/latest.sql.gz.
+# Dump the production database through a read-only user, scrub a copy, upload snapshots/<slug>/latest.sql.gz.
 # Needs: SLUG, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DO_SPACES_BUCKET, DO_SPACES_REGION,
 #        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, a local MySQL on 127.0.0.1:3307 (root, no password)
 # Optional: DB_PORT (3306), SSH_HOST/SSH_USER/SSH_KEY to tunnel, SCRUB_TRUNCATE="formie_submissions other_table"
