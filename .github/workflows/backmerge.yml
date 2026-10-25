@@ -6,13 +6,13 @@ on:
   workflow_call:
     inputs:
       source-branch:
-        description: Branch that was just updated
+        description: Branch that was just updated (empty means BRANCH_MAIN from the manifest)
         type: string
-        default: main
+        default: ""
       target-branch:
-        description: Branch that should follow it
+        description: Branch that should follow it (empty means BRANCH_DEVELOP from the manifest)
         type: string
-        default: develop
+        default: ""
 
 jobs:
   backmerge:
@@ -32,14 +32,25 @@ jobs:
           ref: v1
           path: .craft-ci
 
+      - name: Resolve manifest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .craft-ci/scripts/manifest.sh >> "$GITHUB_OUTPUT"
+
       - name: Merge and push
         shell: bash
         env:
-          SOURCE: ${{ inputs.source-branch }}
-          TARGET: ${{ inputs.target-branch }}
+          SOURCE: ${{ inputs.source-branch || steps.manifest.outputs.BRANCH_MAIN }}
+          TARGET: ${{ inputs.target-branch || steps.manifest.outputs.BRANCH_DEVELOP }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
+          if [ -z "$TARGET" ]; then
+            echo "::notice::no develop branch configured, nothing to back-merge"
+            exit 0
+          fi
           code=0
           bash .craft-ci/scripts/backmerge.sh "$SOURCE" "$TARGET" || code=$?
           case "$code" in

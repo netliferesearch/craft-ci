@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/netliferesearch/craft-ci/v1/fleet.schema.json",
+  "slug": "nch",
+  "snapshot": { "source": "production", "key": "snapshots/nch/latest.sql.gz" },
+  "verify": { "crawlLimit": 40, "ignoreLogPattern": "", "environment": "staging" },
+  "branches": { "main": "main", "develop": "develop" },
+  "preview": {
+    "phpVersion": "php82",
+    "webDirectory": "/web",
+    "buildCommand": "npm ci && npm run build",
+    "siteUrls": { "PRIMARY_SITE_URL": "/" },
+    "env": {},
+    "domain": "on-forge",
+    "maxAgeDays": 14
+  }
+}

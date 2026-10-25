@@ -1,0 +1,67 @@
+# Reusable workflow: boot the site in DDEV with a scrubbed snapshot, run migrations, crawl the sitemap.
+# Settings come from the site's .netlife/fleet.json; callers pass `secrets: inherit`.
+name: Verify Craft site
+
+on:
+  workflow_call:
+    inputs:
+      extra-env:
+        description: Extra KEY=VALUE lines appended to .env, for site secrets such as read-only S3 credentials
+        type: string
+        default: ""
+      project-config-commit:
+        description: Commit project config changed by migrations back to the PR branch
+        type: boolean
+        default: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: netliferesearch/craft-ci
+          ref: v1
+          path: .craft-ci
+
+      - name: Resolve manifest
+        id: manifest
+        shell: bash
+        env:
+          MANIFEST_NO_REMOTE: "1"
+        run: |
+          set -euo pipefail
+          bash .craft-ci/scripts/manifest.sh >> "$GITHUB_OUTPUT"
+
+      - name: Remove craft-ci checkout
+        shell: bash
+        run: rm -rf .craft-ci
+
+      - name: App token
+        id: app-token
+        if: vars.RENOVATE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3.3.0
+        with:
+          client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
+      - name: Verify site
+        uses: netliferesearch/craft-ci@v1
+        with:
+          snapshot-key: ${{ steps.manifest.outputs.SNAPSHOT_SOURCE != 'none' && steps.manifest.outputs.SNAPSHOT_KEY || '' }}
+          spaces-key: ${{ secrets.SNAPSHOT_READ_KEY }}
+          spaces-secret: ${{ secrets.SNAPSHOT_READ_SECRET }}
+          crawl-limit: ${{ steps.manifest.outputs.VERIFY_CRAWL_LIMIT }}
+          ignore-log-pattern: ${{ steps.manifest.outputs.VERIFY_IGNORE_LOG_PATTERN }}
+          environment: ${{ steps.manifest.outputs.VERIFY_ENVIRONMENT }}
+          extra-env: ${{ inputs.extra-env }}
+          commit-project-config: ${{ inputs.project-config-commit }}
+          push-token: ${{ steps.app-token.outputs.token || secrets.RENOVATE_PUSH_TOKEN }}

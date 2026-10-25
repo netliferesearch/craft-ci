@@ -1,0 +1,85 @@
+# Reusable workflow: dump the site's source database, scrub a copy, upload snapshots/<slug>/latest.sql.gz.
+# Settings come from the site's .netlife/fleet.json; callers pass `secrets: inherit`.
+name: Snapshot Craft site
+
+on:
+  workflow_call:
+    inputs:
+      scrub-truncate:
+        description: Space-separated tables to empty after scrubbing, for site-specific tables
+        type: string
+        default: ""
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+        ports: ["3307:3306"]
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: netliferesearch/craft-ci
+          ref: v1
+          path: .craft-ci
+
+      - name: Resolve manifest
+        id: manifest
+        shell: bash
+        env:
+          MANIFEST_NO_REMOTE: "1"
+        run: |
+          set -euo pipefail
+          bash .craft-ci/scripts/manifest.sh >> "$GITHUB_OUTPUT"
+
+      - name: Check snapshot source
+        id: source
+        shell: bash
+        env:
+          SNAPSHOT_SOURCE: ${{ steps.manifest.outputs.SNAPSHOT_SOURCE }}
+        run: |
+          set -euo pipefail
+          case "$SNAPSHOT_SOURCE" in
+            none)
+              echo "::notice::snapshot source is none, nothing to upload"
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              ;;
+            forge-backup)
+              echo "::error::forge-backup source not implemented"
+              exit 1
+              ;;
+            *)
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Snapshot
+        if: steps.source.outputs.run == 'true'
+        shell: bash
+        env:
+          SLUG: ${{ steps.manifest.outputs.SLUG }}
+          DB_HOST: ${{ secrets.SOURCE_DB_HOST }}
+          DB_NAME: ${{ secrets.SOURCE_DB_NAME }}
+          DB_USER: ${{ secrets.SOURCE_DB_USER }}
+          DB_PASSWORD: ${{ secrets.SOURCE_DB_PASSWORD }}
+          SSH_HOST: ${{ secrets.SOURCE_SSH_HOST }}
+          SSH_USER: ${{ secrets.SOURCE_SSH_USER }}
+          SSH_KEY: ${{ secrets.SOURCE_SSH_KEY }}
+          SCRUB_TRUNCATE: ${{ inputs.scrub-truncate }}
+          EXTRA_SCRUB_SQL: .netlife/scrub.sql
+          DO_SPACES_BUCKET: netlife-craft-snapshots
+          DO_SPACES_REGION: fra1
+          AWS_ACCESS_KEY_ID: ${{ secrets.SNAPSHOT_WRITE_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SNAPSHOT_WRITE_SECRET }}
+        run: |
+          set -euo pipefail
+          bash .craft-ci/scripts/snapshot.sh

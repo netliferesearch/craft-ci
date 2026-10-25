@@ -2,7 +2,8 @@
 # Dump the production database through a read-only user, scrub a copy, upload snapshots/<slug>/latest.sql.gz.
 # Needs: SLUG, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DO_SPACES_BUCKET, DO_SPACES_REGION,
 #        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, a local MySQL on 127.0.0.1:3307 (root, no password)
-# Optional: DB_PORT (3306), SSH_HOST/SSH_USER/SSH_KEY to tunnel, SCRUB_TRUNCATE="formie_submissions other_table"
+# Optional: DB_PORT (3306), SSH_HOST/SSH_USER/SSH_KEY to tunnel, SCRUB_TRUNCATE="formie_submissions other_table",
+#           EXTRA_SCRUB_SQL=path to a per-site scrub file, applied after scrub.sql when the file exists
 set -euo pipefail
 
 : "${SLUG:?}" "${DB_HOST:?}" "${DB_NAME:?}" "${DB_USER:?}" "${DB_PASSWORD:?}"
@@ -31,6 +32,10 @@ scratch=(mysql --host=127.0.0.1 --port="$SCRATCH_PORT" --protocol=TCP --user=roo
 "${scratch[@]}" -e "DROP DATABASE IF EXISTS scrub; CREATE DATABASE scrub CHARACTER SET utf8mb4;"
 "${scratch[@]}" scrub < "$work/raw.sql"
 "${scratch[@]}" scrub < "$(dirname "$0")/scrub.sql"
+if [ -n "${EXTRA_SCRUB_SQL:-}" ] && [ -f "$EXTRA_SCRUB_SQL" ]; then
+  "${scratch[@]}" scrub < "$EXTRA_SCRUB_SQL"
+  echo "extra scrub applied: $EXTRA_SCRUB_SQL"
+fi
 for t in ${SCRUB_TRUNCATE:-}; do
   "${scratch[@]}" scrub -e "DELETE FROM \`$t\`;" && echo "emptied $t"
 done

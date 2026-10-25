@@ -1,0 +1,8 @@
+[
+  { "name": "plain repo name", "repository": "Feedsystem/NCH", "manifest": {}, "expect": { "slug": "nch", "snapshotKey": "snapshots/nch/latest.sql.gz" } },
+  { "name": "long repo name is cleaned and cut to 12", "repository": "netliferesearch/My-Long_Site-Name-2026", "manifest": {}, "expect": { "slug": "mylongsitena", "snapshotKey": "snapshots/mylongsitena/latest.sql.gz" } },
+  { "name": "repo name that is only digits", "repository": "org/2026", "manifest": {}, "expect": "error" },
+  { "name": "repo name that is too short", "repository": "org/x", "manifest": {}, "expect": "error" },
+  { "name": "explicit slug", "repository": "org/anything", "manifest": { "slug": "acme" }, "expect": { "slug": "acme", "snapshotKey": "snapshots/acme/latest.sql.gz" } },
+  { "name": "explicit slug and key", "repository": "org/anything", "manifest": { "slug": "acme", "snapshot": { "key": "custom/key.sql.gz" } }, "expect": { "slug": "acme", "snapshotKey": "custom/key.sql.gz" } }
+]

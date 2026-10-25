@@ -1,14 +1,7 @@
-# Copy to .github/workflows/verify.yml in the site repo. Set snapshot-key to the site's slug.
+# Copy to .github/workflows/verify.yml in the site repo. Settings come from .netlife/fleet.json.
 name: Verify
 on: [pull_request]
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: netliferesearch/craft-ci@v1
-        with:
-          snapshot-key: snapshots/CHANGE-ME/latest.sql.gz
-          spaces-key: ${{ secrets.SNAPSHOT_READ_KEY }}
-          spaces-secret: ${{ secrets.SNAPSHOT_READ_SECRET }}
+    uses: netliferesearch/craft-ci/.github/workflows/verify.yml@v1
+    secrets: inherit
