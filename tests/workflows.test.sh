@@ -4,7 +4,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$ROOT" || exit 1
 
-yq_ruby() { ruby -ryaml -e 'doc = YAML.load_file(ARGV[0]); on = doc[true] || doc["on"]; '"$1" .github/workflows/verify.yml; }
+yq_ruby() { ruby -ryaml -e 'doc = YAML.load_file(ARGV[0]); on = doc[true] || doc["on"]; '"$1" "${2:-.github/workflows/verify.yml}"; }
 
 test_actionlint() {
   local out code=0
@@ -28,6 +28,14 @@ test_verify_no_secret_decl() {
 test_verify_inputs_and_job() {
   assert_eq "" "$(yq_ruby 'i = on["workflow_call"]["inputs"]; puts "x" unless i["extra-env"]["default"] == "" && i["project-config-commit"]["type"] == "boolean" && i["project-config-commit"]["default"] == true' 2>&1)" "inputs"
   assert_eq "" "$(yq_ruby 'j = doc["jobs"]["verify"]; puts "x" unless j["runs-on"] == "ubuntu-latest" && j["timeout-minutes"] == 25 && j["permissions"] == {"contents" => "read"}' 2>&1)" "job settings"
+}
+
+test_snapshot_job_id() {
+  assert_eq snapshot "$(yq_ruby 'puts doc["jobs"].keys.first' .github/workflows/snapshot.yml 2>&1)" "first job id"
+}
+
+test_snapshot_has_service() {
+  assert_eq mysql:8.0 "$(yq_ruby 'puts doc["jobs"]["snapshot"]["services"]["mysql"]["image"]' .github/workflows/snapshot.yml 2>&1)" "mysql service image"
 }
 
 run_tests
