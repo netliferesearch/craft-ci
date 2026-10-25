@@ -117,7 +117,9 @@ contract for derivation.
 
 ### Thin callers
 
-Reusable workflows (`workflow_call`) in the shared repos, called with `secrets: inherit`:
+Reusable workflows (`workflow_call`) in the shared repos, called with the secrets mapped by name
+(GitHub honours `secrets: inherit` only inside one organization, and the fleet spans two; found on
+the first live run, 2026-10-25):
 
 | Site file | Calls | Lines in the site repo |
 | --- | --- | --- |
@@ -129,9 +131,9 @@ Reusable workflows (`workflow_call`) in the shared repos, called with `secrets: 
 The reusable workflows read `.netlife/fleet.json`, resolve defaults, and call the composite actions with
 the resolved values. The snapshot workflow also passes `.netlife/scrub.sql` to the snapshot script when the
 file exists; the script applies it to the throwaway copy after the shared scrub. The composite actions keep their inputs, so a site that needs something the
-manifest does not express can still call the action directly. `secrets: inherit` passes every
-secret the repo can see, which is why the Spaces and App secrets should be org secrets scoped to
-the right repos (the admin round in the onboarding note).
+manifest does not express can still call the action directly. The caller lists the secret names it maps, never values, so a site file still carries nothing
+site-specific. The Spaces and App secrets should be org secrets scoped to the right repos (the admin
+round in the onboarding note).
 
 The push token for the project config commit is minted inside the reusable verify workflow with
 `actions/create-github-app-token` from `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`, so
