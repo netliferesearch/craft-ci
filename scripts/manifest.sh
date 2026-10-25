@@ -53,6 +53,8 @@ errors="$(printf '%s' "$manifest" | jq -r '
      then "verify.crawlLimit must be a positive integer" else empty end),
   (if (.verify | type) == "object" and (.verify | has("ignoreLogPattern")) and (.verify.ignoreLogPattern | type) != "string"
      then "verify.ignoreLogPattern must be a string" else empty end),
+  (if (.verify | type) == "object" and ((.verify.ignoreLogPattern // "") | type) == "string" and ((.verify.ignoreLogPattern // "") | test("\n"))
+     then "verify.ignoreLogPattern must be a single line" else empty end),
   (if (.verify | type) == "object" and (.verify | has("environment"))
       and ((.verify.environment | type) != "string" or (.verify.environment | length) == 0)
      then "verify.environment must be a non-empty string" else empty end),

@@ -50,7 +50,7 @@
           "type": "string",
           "minLength": 1,
           "default": "staging",
-          "description": "GitHub environment that holds the verify secrets."
+          "description": "Value of CRAFT_ENVIRONMENT during verify. A production-like name keeps dev-only behaviour (such as a Vite dev server) off."
         }
       }
     },

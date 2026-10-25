@@ -32,6 +32,8 @@ jobs:
       - name: Resolve manifest
         id: manifest
         shell: bash
+        env:
+          MANIFEST_NO_REMOTE: "1"
         run: |
           set -euo pipefail
           bash .craft-ci/scripts/manifest.sh >> "$GITHUB_OUTPUT"

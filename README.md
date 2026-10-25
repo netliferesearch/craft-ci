@@ -35,7 +35,7 @@ after the first pilot runs green.
 
 ## Site files
 
-A site repo holds a `.netlife/` directory and three small workflow files. Everything else lives here.
+A site repo holds a `.netlife/` directory and a few small workflow files. Everything else lives here.
 
 ### The `.netlife/` directory
 
@@ -59,7 +59,7 @@ The keys the workflows here use:
 | `snapshot.key` | `snapshots/<slug>/latest.sql.gz` | slug |
 | `verify.crawlLimit` | `40` | |
 | `verify.ignoreLogPattern` | `""` | |
-| `verify.environment` | `staging` | |
+| `verify.environment` | `staging` | passed to the action as `CRAFT_ENVIRONMENT` |
 | `branches.main` | `main` | |
 | `branches.develop` | `develop` if that branch exists on origin, else `null` (no back-merge) | `git ls-remote` |
 

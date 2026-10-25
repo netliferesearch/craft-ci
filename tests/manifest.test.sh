@@ -61,6 +61,12 @@ test_bad_source() {
   done
 }
 
+test_ignore_pattern_newline() {
+  resolve '{"verify":{"ignoreLogPattern":"a\nb"}}'
+  assert_eq 2 "$CODE" "exit code"
+  grep -q "ignoreLogPattern" "$T/out"; assert_eq 0 $? "stderr names ignoreLogPattern"
+}
+
 test_unknown_key() {
   resolve '{"snapshotKey":"x"}'
   assert_eq 2 "$CODE" "exit code"
