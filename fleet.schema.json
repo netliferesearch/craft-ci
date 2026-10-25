@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/netliferesearch/craft-ci/main/fleet.schema.json",
+  "title": "Netlife fleet manifest",
+  "description": "Per-site manifest at .netlife/fleet.json. Every key is optional; scripts/manifest.sh applies the defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string", "description": "Schema URL for editor support." },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{1,11}$",
+      "description": "Short site identifier used in snapshot keys and preview names. Default: the repository name after the slash, lowercased, characters outside a-z0-9 removed, cut to 12 characters. Set it explicitly when that result is not a valid slug."
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Where the database snapshot for verify and previews comes from.",
+      "properties": {
+        "source": {
+          "enum": ["production", "staging", "none", "forge-backup"],
+          "default": "production",
+          "description": "Snapshot source. production: the site's production database. staging: for sites without a production environment. none: no snapshot. forge-backup: Craft's own backup via Forge."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "default": "snapshots/<slug>/latest.sql.gz",
+          "description": "Object key of the snapshot in storage. Default: snapshots/<slug>/latest.sql.gz."
+        }
+      }
+    },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings for the verify workflow.",
+      "properties": {
+        "crawlLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 40,
+          "description": "Maximum number of pages the crawler visits."
+        },
+        "ignoreLogPattern": {
+          "type": "string",
+          "default": "",
+          "description": "Regular expression for log lines that are not treated as errors. Empty means nothing is ignored."
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1,
+          "default": "staging",
+          "description": "GitHub environment that holds the verify secrets."
+        }
+      }
+    },
+    "branches": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Long-lived branches.",
+      "properties": {
+        "main": {
+          "type": "string",
+          "minLength": 1,
+          "default": "main",
+          "description": "The production branch."
+        },
+        "develop": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "The integration branch that follows main. Absent: detected on origin (develop is used when it exists). A string names the branch without probing. null means the site has no such branch."
+        }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Preview environment settings. Owned by craft-preview; the resolver only checks that this is an object.",
+      "properties": {
+        "phpVersion": {
+          "enum": ["php82", "php83", "php84", "php85"],
+          "description": "PHP version for the preview site. No default: it must be set when previews are used."
+        },
+        "webDirectory": {
+          "type": "string",
+          "description": "Web root relative to the repository root."
+        },
+        "buildCommand": {
+          "type": "string",
+          "description": "Command that builds front-end assets before deploy."
+        },
+        "siteUrls": {
+          "type": "object",
+          "description": "Craft site URL environment variables to point at the preview domain.",
+          "additionalProperties": { "type": "string" }
+        },
+        "env": {
+          "type": "object",
+          "description": "Extra environment variables for the preview site.",
+          "additionalProperties": { "type": "string" }
+        },
+        "domain": {
+          "enum": ["on-forge", "custom"],
+          "default": "on-forge",
+          "description": "on-forge: use a Forge-provided domain. custom: use the site's own preview domain."
+        },
+        "language": {
+          "type": "string",
+          "description": "Craft site language for the preview."
+        },
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Previews older than this many days are cleaned up."
+        }
+      }
+    }
+  }
+}
