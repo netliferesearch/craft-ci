@@ -349,3 +349,38 @@ gh workflow run snapshot.yml --repo Feedsystem/nch && gh run watch
 ```
 
 Expected: back-merge green, snapshot green and `latest.sql.gz` rewritten (check the object's date in the bucket). Record the switch in the fleet design's Pilot log.
+
+## Review follow-ups (2026-10-25)
+
+Phase 1 shipped on 2026-10-25 (craft-ci v1 at 99aa674, craft-preview v1 at dedd825, nch PRs 15 and 16). The per-task and final reviews left these minor findings, all triaged "can wait" by the final reviewer. Tx = task number in this plan; the final review's own items are marked F.
+
+- T1: manifest.sh error list indents only the first line when several errors.
+- T1: multi-line values (ignoreLogPattern with newline) would corrupt KEY=VALUE output; reject or document.
+- T1: no tests for MANIFEST_NO_REMOTE=1, malformed JSON, missing jq (exit 3), wrong types; test_develop_named does not prove no probe.
+- T1: test_no_file runs the resolver twice.
+- T2: verify.yml hardcodes v1 for the craft-ci checkout and the action regardless of the ref the caller used; add a comment.
+- T2: tests do not assert step ordering (rm -rf after manifest, before action), the App-token `if`, or the push-token expression.
+- T2: test_actionlint gives "exit 127" without a guard when actionlint or ruby is missing.
+- T3: shim test depends on scripts/scrub.sql containing `UPDATE users`.
+- T3: workflows.test.sh header still names only the verify workflow.
+- T3: `set -euo pipefail` repeated in run blocks where `shell: bash` already implies -e and pipefail (harmless).
+- T4: yq_ruby cannot distinguish `default: ""` from an absent default (prints empty either way).
+- T4: report claimed a MANIFEST_NO_REMOTE comment that is not in the diff.
+- T5: README:38 "three small workflow files" but the table lists four callers.
+- T5: README back-merge section should say "if the configured target branch does not exist" (explicit manifest develop that is absent also fails).
+- T5: README does not say verify does a fresh install when snapshot.source is none.
+- T5: README intro still calls the repo "a composite GitHub Action" without mentioning the reusable workflows.
+- T5: hosting table uses bare SSH_HOST/SSH_USER/SSH_KEY where the secrets are SOURCE_SSH_* (pre-existing).
+Ruling: Task 7 is prepared now in ~/code/nch on branch ci/fleet-manifest, committed, not pushed (different repo from Tasks 5 and 6, no shared files). nch's .netlife/fleet.json carries the preview block (phpVersion php82, env CLOUDFRONT_URL) so craft-preview can read it once its v1 includes Task 6, and .craft-preview.json is KEPT in this PR because craft-preview@v1 on nch still reads the old file until that tag moves; a follow-up removes it. PR, protection change and merge wait for Svale after craft-ci v1 moves — costs one extra follow-up commit if wrong.
+- T6: siteUrls regex matches only top-level `baseUrl: $VAR` (quoted or not), not `${VAR}`.
+- T6: craft-preview's 2026-10-19 design spec still describes the old manifest; update it when the branch merges.
+- T6: legacy domain object's baseDomain/certificateId dropped silently; warning could say they moved to action inputs.
+- T6: down and sweep run the full resolver, so an unresolvable phpVersion blocks teardown; a slug-only resolve would avoid it.
+- T6: malformed composer.json/package.json throws a raw SyntaxError without the file name.
+- T6: a comment that `${VAR}` is not matched because Craft project config uses `$VAR`.
+- F: `fleet.schema.json` annotations vs zod defaults: `preview.phpVersion` says "no default" though craft-preview derives it; `webDirectory`, `language`, `maxAgeDays`, `env` lack `default` entries; `snapshot.key` carries a template string as a literal default that editors would autocomplete.
+- F: `examples/backmerge.yml` triggers on `branches: [main]` while `branches.main` may differ; say so in the README caller table.
+- F: no test runs `scripts/manifest.sh` over `examples/fleet.json`; `test_examples_lint` checks only `.slug` with jq.
+- F: legacy `.craft-preview.json` without `phpVersion` used to default to `php84`; the translation now derives from composer.json or fails loudly. Documented behaviour change.
+- F (recommendation, security): callers map every secret into reusable workflows pinned to the mutable `v1` tag, so whoever can move the tag runs with every site's secrets. Add tag protection rules for `v1` in craft-ci and craft-preview; phase 3's audit should check them.
+- Lesson recorded in README and spec: `secrets: inherit` works only inside one GitHub organization; callers map secrets by name and pass the App client id as the `app-client-id` input.
