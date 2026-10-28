@@ -88,4 +88,11 @@ test_examples_lint() {
   assert_eq nch "$(jq -r '.slug' examples/fleet.json 2>&1)" "example manifest slug"
 }
 
+test_example_manifest_resolves() {
+  local out code=0
+  out="$(GITHUB_REPOSITORY=Feedsystem/nch MANIFEST_NO_REMOTE=1 bash scripts/manifest.sh examples/fleet.json 2>&1)" || code=$?
+  assert_eq 0 "$code" "manifest.sh exit on examples/fleet.json ($out)"
+  case "$out" in *$'SLUG=nch'*) ;; *) assert_eq "contains SLUG=nch" "$out" "resolved slug" ;; esac
+}
+
 run_tests
