@@ -1,0 +1,19 @@
+# Copy to .github/workflows/snapshot.yml in the site repo. Nightly scrubbed production snapshot.
+# The schedule sits here because a reusable workflow cannot carry one.
+# Craft Cloud variant: reuses the database secrets of the craft-cloud-remote-backups template (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD).
+# The secret lines pass names only; the values live in each repo's own secrets.
+name: Snapshot
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+jobs:
+  snapshot:
+    uses: netliferesearch/craft-ci/.github/workflows/snapshot.yml@v1
+    secrets:
+      SOURCE_DB_HOST: ${{ secrets.DB_HOST }}
+      SOURCE_DB_NAME: ${{ secrets.DB_NAME }}
+      SOURCE_DB_USER: ${{ secrets.DB_USER }}
+      SOURCE_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      SNAPSHOT_WRITE_KEY: ${{ secrets.SNAPSHOT_WRITE_KEY }}
+      SNAPSHOT_WRITE_SECRET: ${{ secrets.SNAPSHOT_WRITE_SECRET }}
