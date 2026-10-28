@@ -261,6 +261,14 @@ test_apply_on_existing_branch() {
   assert_eq 1 "$(log_has '^pr create')" "pr created"
 }
 
+test_checkout_may_be_worktree() {
+  bare_site; compliant_gh
+  git -C "$T/work" worktree add -q -b wt-branch "$T/wt"
+  CODE=0
+  ( cd "$T" && PATH="$T/bin:$PATH" ONBOARD_CHECKOUT="$T/wt" bash "$SCRIPT" "$R" --host forge ) > "$T/out" 2>&1 || CODE=$?
+  assert_eq 0 "$([ "$CODE" -eq 2 ] && echo 1 || echo 0)" "worktree accepted (exit $CODE)"
+}
+
 test_apply_clean_files_no_pr() {
   nch_site; compliant_gh
   run_onboard "$R" --host forge --apply

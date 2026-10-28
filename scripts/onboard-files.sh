@@ -141,7 +141,7 @@ fi
 if [ -f .netlife/scrub.sql ]; then
   report ok scrub ".netlife/scrub.sql present"
 else
-  report todo scrub "write and review .netlife/scrub.sql before merging (blocks the snapshot)"
+  report todo scrub "write and review .netlife/scrub.sql before merging (the snapshot runs without it)"
 fi
 
 # legacy preview config

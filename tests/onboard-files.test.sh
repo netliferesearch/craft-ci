@@ -76,7 +76,7 @@ test_missing_scrub_is_todo() {
   nch_site; rm "$T/work/.netlife/scrub.sql"
   run_in_work "$SCRIPT" "$T/work" --host forge
   assert_eq 1 "$CODE" "exit code"
-  assert_eq 1 "$(grep -cFx 'todo scrub: write and review .netlife/scrub.sql before merging (blocks the snapshot)' "$T/out")" "scrub line"
+  assert_eq 1 "$(grep -cFx 'todo scrub: write and review .netlife/scrub.sql before merging (the snapshot runs without it)' "$T/out")" "scrub line"
 }
 
 test_slug_flag_differs() {

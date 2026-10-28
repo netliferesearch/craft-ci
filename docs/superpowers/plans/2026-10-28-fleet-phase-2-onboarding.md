@@ -92,7 +92,7 @@ Behaviour the tests pin:
 - Manifest absent: `diff`; `--write` creates `{"$schema": "https://raw.githubusercontent.com/netliferesearch/craft-ci/v1/fleet.schema.json"}` plus `slug` only when `--slug` is given and differs from the repo-derived default, plus `"branches": {"develop": null}` only for `--develop none`. Pretty-printed with `jq .`. The repo name comes from `GITHUB_REPOSITORY`, which Task 3 sets.
 - Manifest present: run `manifest.sh` with `MANIFEST_NO_REMOTE=1`; exit ≠ 0 is `diff` with its stderr; when `--slug`/`--develop` are given and the resolved `SLUG`/`BRANCH_DEVELOP` differ, `diff`. Never rewritten by `--write`.
 - `ddev database`: `.ddev/config.yaml` without `type: mysql` and `version: "8.0"` under `database:` is `todo` (never written). No `.ddev/` is `todo` too.
-- `scrub`: `.netlife/scrub.sql` absent is `todo` with detail `write and review .netlife/scrub.sql before merging (blocks the snapshot)`.
+- `scrub`: `.netlife/scrub.sql` absent is `todo` with detail `write and review .netlife/scrub.sql before merging (the snapshot runs without it)`.
 - `legacy preview config`: `.craft-preview.json` present is `diff`; `--write` deletes it.
 
 - [ ] **Step 1: Write the failing tests** in `tests/onboard-files.test.sh` (use `make_repo`, write files into `$T/work`, `run_in_work`):
@@ -103,7 +103,7 @@ Behaviour the tests pin:
 - `test_cloud_without_backup`: `craft-cloud.yaml` only; `--write` → `snapshot.yml` equals `examples/snapshot.yml`.
 - `test_host_required_without_cloud_file`: no `craft-cloud.yaml`, no `--host` → exit 2, stderr names `--host`.
 - `test_mariadb_is_todo`: ddev `type: mariadb` → line starting `todo ddev database`, exit 1; `--write` leaves `.ddev/config.yaml` unchanged.
-- `test_missing_scrub_is_todo`: line `todo scrub: write and review .netlife/scrub.sql before merging (blocks the snapshot)`.
+- `test_missing_scrub_is_todo`: line `todo scrub: write and review .netlife/scrub.sql before merging (the snapshot runs without it)`.
 - `test_slug_flag_differs`: existing manifest with `slug: abc`, `--slug xyz` → `diff manifest`.
 - `test_develop_none_written`: no manifest, `--develop none --write` → `.branches.develop == null` in the written file.
 - `test_legacy_preview_removed`: `.craft-preview.json` present, `--write` → file gone.
@@ -280,9 +280,9 @@ Expected: exit 1; `diff` for topic, protection, auto-merge, dependabot alerts, a
 
 - [ ] **Step 2 (Svale): add the secrets** listed as `todo` to Feedsystem/nfi (values from Craft Cloud and 1Password).
 
-- [ ] **Step 3: Apply** with `ONBOARD_CHECKOUT` pointing at `~/code/nfi` on branch `netlife/fleet-onboarding` (Task 5's commit), so the PR carries the DDEV and scrub changes too:
+- [ ] **Step 3: Apply** with `ONBOARD_CHECKOUT` pointing at `~/code/nfi-fleet-onboarding` (a worktree of `~/code/nfi` on branch `netlife/fleet-onboarding`, Task 5's commit), so the PR carries the DDEV and scrub changes too:
 
-Run: `ONBOARD_CHECKOUT=~/code/nfi bash scripts/onboard.sh Feedsystem/nfi --apply`
+Run: `ONBOARD_CHECKOUT=~/code/nfi-fleet-onboarding bash scripts/onboard.sh Feedsystem/nfi --apply`
 Expected: one PR "Adopt craft-ci fleet configuration" on nfi with manifest, three callers, `.ddev/config.yaml`, `.netlife/scrub.sql`; settings applied. PR description says the team needs a fresh local DB import after MySQL 8.0 lands.
 
 - [ ] **Step 4: Renovate.** PR on netliferesearch/renovate adding `'Feedsystem/nfi'` to `repositories` in `config.js`; Svale merges.

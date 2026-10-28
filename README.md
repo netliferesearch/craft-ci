@@ -224,9 +224,14 @@ The workflow hands the three SSH secrets to the script as `SSH_HOST`, `SSH_USER`
 `gh` logged in with access to the repo.
 
 ```bash
-scripts/onboard.sh Feedsystem/nch                          # dry run: reads, changes nothing
-scripts/onboard.sh Feedsystem/nch --host cloud --apply     # apply the fixes
+scripts/onboard.sh Feedsystem/nfi                          # dry run: reads, changes nothing
+scripts/onboard.sh Feedsystem/nfi --apply                  # Craft Cloud: craft-cloud.yaml is detected
+scripts/onboard.sh Feedsystem/nch --host forge --apply     # Forge repo: the host must be given
 ```
+
+Only `craft-cloud.yaml` is detected, so Forge and Servebolt repos always need `--host`.
+`ONBOARD_CHECKOUT=<dir>` uses an existing checkout (a clone or a worktree) instead of cloning the repo.
+If that checkout is on `netlife/fleet-onboarding`, its existing commits go into the PR.
 
 Options: `--slug S` (when the derived slug is not valid), `--develop B|none` (name the integration
 branch without probing, or say there is none), `--host forge|servebolt|cloud` (when it cannot be

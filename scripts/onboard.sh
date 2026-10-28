@@ -66,7 +66,7 @@ fix() { # check problem fixed-detail command...
 # Checkout
 if [ -n "${ONBOARD_CHECKOUT:-}" ]; then
   checkout="$ONBOARD_CHECKOUT"
-  [ -d "$checkout/.git" ] || { echo "onboard: ONBOARD_CHECKOUT=$checkout is not a git checkout" >&2; exit 2; }
+  git -C "$checkout" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "onboard: ONBOARD_CHECKOUT=$checkout is not a git checkout" >&2; exit 2; }
 else
   checkout="$tmp/repo"
   gh repo clone "$repo" "$checkout" -- -q || { echo "onboard: cannot clone $repo" >&2; exit 2; }
