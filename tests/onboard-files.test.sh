@@ -108,4 +108,25 @@ test_caller_one_byte_off() {
   assert_eq 1 "$(grep -c '^diff caller verify' "$T/out")" "diff caller verify"
 }
 
+test_write_invalid_slug_is_diff() {
+  make_repo
+  GITHUB_REPOSITORY=o/123 run_in_work "$SCRIPT" "$T/work" --host forge --write
+  assert_eq 1 "$CODE" "exit code"
+  assert_eq 1 "$(grep -c '^diff manifest' "$T/out")" "diff manifest"
+}
+
+test_develop_named_written() {
+  make_repo
+  run_in_work "$SCRIPT" "$T/work" --host forge --develop staging --write
+  assert_eq '"staging"' "$(jq -c '.branches.develop' "$T/work/.netlife/fleet.json")" "develop named"
+  assert_eq 1 "$(grep -c '^ok manifest' "$T/out")" "ok manifest"
+}
+
+test_existing_manifest_develop_mismatch() {
+  nch_site; put .netlife/fleet.json '{"slug":"nch"}'
+  run_in_work "$SCRIPT" "$T/work" --host forge --develop none
+  assert_eq 1 "$CODE" "exit code"
+  assert_eq 1 "$(grep -c '^diff manifest' "$T/out")" "diff manifest"
+}
+
 run_tests

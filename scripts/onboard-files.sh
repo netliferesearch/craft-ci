@@ -66,31 +66,49 @@ repo_slug() {
   printf '%s' "${repo#*/}" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9' | cut -c1-12
 }
 mpath=.netlife/fleet.json
-if [ -f "$mpath" ]; then
+
+# Resolve the manifest with manifest.sh and compare it with --slug/--develop. Prints "ok <detail>" or "diff <reason>".
+manifest_verdict() {
+  local err_file out code=0 got_slug got_develop want_develop problems=""
   err_file="$(mktemp)"
-  code=0
   out="$(bash "$MANIFEST_SH" "$mpath" 2>"$err_file")" || code=$?
   if [ "$code" -ne 0 ]; then
-    report diff manifest "manifest.sh exited $code: $(tr '\n' ' ' < "$err_file")"
-  else
-    got_slug="$(printf '%s\n' "$out" | grep '^SLUG=' | cut -d= -f2-)"
-    got_develop="$(printf '%s\n' "$out" | grep '^BRANCH_DEVELOP=' | cut -d= -f2-)"
-    want_develop="$develop"; [ "$develop" = none ] && want_develop=""
-    problems=""
-    if [ -n "$slug" ] && [ "$slug" != "$got_slug" ]; then problems="slug is '$got_slug', expected '$slug'"; fi
-    if [ -n "$develop" ] && [ "$want_develop" != "$got_develop" ]; then
-      problems="${problems:+$problems; }develop is '${got_develop:-none}', expected '$develop'"
-    fi
-    if [ -n "$problems" ]; then report diff manifest "$problems"; else report ok manifest "valid (slug $got_slug)"; fi
+    echo "diff manifest.sh exited $code: $(tr '\n' ' ' < "$err_file")"
+    rm -f "$err_file"; return
   fi
   rm -f "$err_file"
+  got_slug="$(printf '%s\n' "$out" | grep '^SLUG=' | cut -d= -f2-)"
+  got_develop="$(printf '%s\n' "$out" | grep '^BRANCH_DEVELOP=' | cut -d= -f2-)"
+  want_develop="$develop"; [ "$develop" = none ] && want_develop=""
+  if [ -n "$slug" ] && [ "$slug" != "$got_slug" ]; then problems="slug is '$got_slug', expected '$slug'"; fi
+  if [ -n "$develop" ] && [ "$want_develop" != "$got_develop" ]; then
+    problems="${problems:+$problems; }develop is '${got_develop:-none}', expected '$develop'"
+  fi
+  if [ -n "$problems" ]; then echo "diff $problems"; else echo "ok valid (slug $got_slug)"; fi
+}
+
+report_manifest() { # suffix
+  local verdict; verdict="$(manifest_verdict)"
+  report "${verdict%% *}" manifest "${verdict#* }$1"
+}
+
+if [ -f "$mpath" ]; then
+  report_manifest ""
 elif [ "$write" = 1 ]; then
+  # A named develop branch is written only when it differs from what the origin probe resolves.
+  named=""
+  if [ -n "$develop" ] && [ "$develop" != none ]; then
+    probed=""
+    if git ls-remote --exit-code --heads origin develop >/dev/null 2>&1; then probed=develop; fi
+    [ "$develop" != "$probed" ] && named="$develop"
+  fi
   mkdir -p .netlife
-  jq -n --arg schema "$SCHEMA_URL" --arg slug "$slug" --arg default "$(repo_slug)" --arg develop "$develop" '
+  jq -n --arg schema "$SCHEMA_URL" --arg slug "$slug" --arg default "$(repo_slug)" --arg develop "$develop" --arg named "$named" '
     {"$schema": $schema}
     + (if $slug != "" and $slug != $default then {slug: $slug} else {} end)
-    + (if $develop == "none" then {branches: {develop: null}} else {} end)' > "$mpath"
-  report ok manifest "created $mpath (written)"
+    + (if $develop == "none" then {branches: {develop: null}}
+       elif $named != "" then {branches: {develop: $named}} else {} end)' > "$mpath"
+  report_manifest " (written)"
 else
   report diff manifest "$mpath is missing"
 fi
