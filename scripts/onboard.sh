@@ -101,23 +101,42 @@ else
   fi
 fi
 
+# Protection: the PUT is built from the GET. Every existing rule is kept except three: verify / verify is
+# added to the required checks, strict is set, and required reviews are removed.
 rc=0; gh_read api "repos/$repo/branches/main/protection" || rc=$?
 if [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ]; then
   if [ "$rc" -eq 4 ]; then prot='{}'; problems="main is not protected"; else
     prot="$GH_OUT"
     problems="$(jq -r --arg v "$CONTEXT" '[
-        (if (.required_status_checks.contexts // []) | index($v) then empty else "\($v) not required" end),
+        (if ([(.required_status_checks.contexts // [])[], (.required_status_checks.checks // [])[].context] | index($v))
+         then empty else "\($v) not required" end),
         (if .required_status_checks.strict == true then empty else "status checks not strict" end),
-        (if .required_pull_request_reviews == null then empty else "pull request reviews required" end)
+        (if .required_pull_request_reviews == null then empty else "removes required reviews" end)
       ] | join(", ")' <<<"$prot")"
   fi
   if [ -z "$problems" ]; then
     report ok protection "main requires $CONTEXT, strict, no required reviews"
   else
-    body="$(jq -c --arg v "$CONTEXT" '(.required_status_checks.contexts // []) as $c
-      | {required_status_checks: {strict: true, contexts: ($c + ([$v] - $c))},
-         enforce_admins: false, required_pull_request_reviews: null, restrictions: null}' <<<"$prot")"
-    fix protection "$problems" "main requires $CONTEXT, strict, no required reviews" \
+    fixed="main requires $CONTEXT, strict, no required reviews"
+    case "$problems" in *"removes required reviews"*) fixed="$fixed (required reviews removed)" ;; esac
+    body="$(jq -c --arg v "$CONTEXT" '
+      . as $g
+      | ($g.required_status_checks // {}) as $r
+      | ($r.contexts // []) as $c
+      | ($r.checks // []) as $k
+      | {required_status_checks: ({strict: true} + (if ($k | length) > 0
+            then {checks: ([$k[] | if .app_id == null then {context} else {context, app_id} end]
+                           + (if any($k[]; .context == $v) then [] else [{context: $v}] end))}
+            else {contexts: ($c + ([$v] - $c))} end)),
+         enforce_admins: ($g.enforce_admins.enabled // false),
+         required_pull_request_reviews: null,
+         restrictions: (if $g.restrictions == null then null else
+           {users: [$g.restrictions.users[]?.login], teams: [$g.restrictions.teams[]?.slug],
+            apps: [$g.restrictions.apps[]?.slug]} end)}
+      + ([[ "required_linear_history", "allow_force_pushes", "allow_deletions", "block_creations",
+            "required_conversation_resolution", "lock_branch", "allow_fork_syncing" ][]
+          | select($g[.] != null) | {(.): $g[.].enabled}] | add // {})' <<<"$prot")"
+    fix protection "$problems" "$fixed" \
       gh api -X PUT "repos/$repo/branches/main/protection" --input - <<<"$body"
   fi
 else
@@ -152,12 +171,16 @@ fi
 
 # Files and PR
 pr_url="" pr_head="" pr_rc=0
-gh_read pr list --repo "$repo" --state open --json title,url,headRefName --limit 100 || pr_rc=$?
+gh_read pr list --repo "$repo" --state open --json title,url,headRefName,isCrossRepository --limit 100 || pr_rc=$?
 pr_err="$GH_ERR"
 if [ "$pr_rc" -eq 0 ]; then
-  pr_url="$(jq -r --arg t "$PR_TITLE" '[.[] | select(.title == $t)][0].url // empty' <<<"$GH_OUT")"
-  pr_head="$(jq -r --arg t "$PR_TITLE" '[.[] | select(.title == $t)][0].headRefName // empty' <<<"$GH_OUT")"
+  # Only a PR from a branch of this repo counts; a fork PR with the same title is ignored.
+  pr_select='[.[] | select(.title == $t and .isCrossRepository != true)][0]'
+  pr_url="$(jq -r --arg t "$PR_TITLE" "$pr_select.url // empty" <<<"$GH_OUT")"
+  pr_head="$(jq -r --arg t "$PR_TITLE" "$pr_select.headRefName // empty" <<<"$GH_OUT")"
 fi
+# The files are never committed on main or the default branch.
+default_branch="$(jq -r '.default_branch // empty' <<<"$repo_json" 2>/dev/null || true)"
 
 pr_body() {
   cat <<EOF
@@ -180,9 +203,16 @@ apply_files() {
   local branch cur err paths=() f
   cur="$(git -C "$checkout" rev-parse --abbrev-ref HEAD)"
   if [ "$pr_rc" -ne 0 ]; then report todo files "cannot list open PRs ($pr_err); nothing written"; return; fi
-  if [ "$cur" = "$BRANCH" ]; then branch="$BRANCH"
+  if [ "$cur" = "$BRANCH" ]; then
+    branch="$BRANCH"
+    if [ -n "$pr_head" ] && [ "$pr_head" != "$BRANCH" ]; then
+      report diff files "checkout is on $BRANCH but the open PR $pr_url is from $pr_head; nothing pushed"; return
+    fi
   else
     branch="${pr_head:-$BRANCH}"
+    if [ "$branch" = main ] || [ "$branch" = "$default_branch" ]; then
+      report diff files "the open PR $pr_url is from $branch; refusing to commit on $branch, nothing pushed"; return
+    fi
     if git -C "$checkout" rev-parse -q --verify "refs/heads/$branch" >/dev/null; then
       err="$(git -C "$checkout" checkout -q "$branch" 2>&1)" || { report diff files "cannot check out $branch: $(printf '%s' "$err" | oneline)"; return; }
     elif [ -n "$pr_head" ] && git -C "$checkout" fetch -q origin "$branch" 2>/dev/null; then

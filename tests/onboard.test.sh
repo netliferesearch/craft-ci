@@ -64,7 +64,7 @@ compliant_gh() {
   answer "api repos/$R/vulnerability-alerts" ''
   answer "api repos/$R/actions/permissions/workflow" '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
   answer "api -H Accept: application/vnd.github.raw repos/netliferesearch/renovate/contents/config.js" "repositories: ['$R'],"
-  answer "pr list --repo $R --state open --json title,url,headRefName --limit 100" '[]'
+  answer "pr list --repo $R --state open --json title,url,headRefName,isCrossRepository --limit 100" '[]'
   secrets SOURCE_DB_HOST SOURCE_DB_NAME SOURCE_DB_USER SOURCE_DB_PASSWORD SOURCE_SSH_HOST SOURCE_SSH_USER SOURCE_SSH_KEY RENOVATE_PUSH_TOKEN
   answer "variable list --repo $R --json name" '[]'
   org_secrets SNAPSHOT_WRITE_KEY SNAPSHOT_WRITE_SECRET SNAPSHOT_READ_KEY SNAPSHOT_READ_SECRET
@@ -123,6 +123,32 @@ test_apply_protection_keeps_contexts() {
   assert_eq 0 "$CODE" "exit code"
 }
 
+test_apply_protection_keeps_rules() {
+  nch_site; compliant_gh
+  answer "api repos/$R/branches/main/protection" '{
+    "required_status_checks": {"strict": false, "contexts": ["build", "lint"],
+      "checks": [{"context": "build", "app_id": 15368}, {"context": "lint", "app_id": null}]},
+    "enforce_admins": {"enabled": true},
+    "required_pull_request_reviews": {"required_approving_review_count": 1},
+    "restrictions": {"users": [{"login": "svale"}], "teams": [], "apps": []},
+    "required_linear_history": {"enabled": true},
+    "allow_force_pushes": {"enabled": false},
+    "allow_deletions": {"enabled": false},
+    "required_conversation_resolution": {"enabled": true}}'
+  run_onboard "$R" --host forge
+  assert_eq 1 "$(count '^diff protection:.*removes required reviews' "$T/out")" "dry run says reviews go"
+  run_onboard "$R" --host forge --apply
+  local b; b="$T/stdin/$(gh_key "api -X PUT repos/$R/branches/main/protection --input -")"
+  assert_eq '[{"context":"build","app_id":15368},{"context":"lint"},{"context":"verify / verify"}]' \
+    "$(jq -c '.required_status_checks.checks' "$b")" "checks keep app_id"
+  assert_eq 'null' "$(jq -c '.required_status_checks.contexts' "$b")" "no contexts next to checks"
+  assert_eq 'true true null' "$(jq -r '[.required_status_checks.strict, .enforce_admins, .required_pull_request_reviews] | map(tostring) | join(" ")' "$b")" "strict, admins, reviews"
+  assert_eq '{"users":["svale"],"teams":[],"apps":[]}' "$(jq -c '.restrictions' "$b")" "restrictions"
+  assert_eq 'true false false true' "$(jq -r '[.required_linear_history, .allow_force_pushes, .allow_deletions, .required_conversation_resolution] | map(tostring) | join(" ")' "$b")" "other rules kept"
+  assert_eq 'false' "$(jq -c 'has("lock_branch")' "$b")" "absent rules not added"
+  assert_eq 1 "$(count '^ok protection:.*required reviews removed.*(applied)' "$T/out")" "applied line"
+}
+
 test_apply_fixes_settings() {
   nch_site; noncompliant_gh
   run_onboard "$R" --host forge --apply
@@ -156,8 +182,8 @@ test_apply_reuses_open_pr() {
   ( cd "$T/work" && git checkout -q -b netlife/fleet-onboarding && echo x > b.txt && git add b.txt \
     && git commit -q -m earlier && git push -q origin netlife/fleet-onboarding && git checkout -q main \
     && git branch -q -D netlife/fleet-onboarding )
-  answer "pr list --repo $R --state open --json title,url,headRefName --limit 100" \
-    '[{"title":"Other","url":"https://x/pull/1","headRefName":"other"},{"title":"'"$TITLE"'","url":"https://x/pull/7","headRefName":"netlife/fleet-onboarding"}]'
+  answer "pr list --repo $R --state open --json title,url,headRefName,isCrossRepository --limit 100" \
+    '[{"title":"Other","url":"https://x/pull/1","headRefName":"other","isCrossRepository":false},{"title":"'"$TITLE"'","url":"https://x/pull/7","headRefName":"netlife/fleet-onboarding","isCrossRepository":false}]'
   run_onboard "$R" --host forge --apply
   assert_eq 0 "$(log_has 'pr create')" "no pr create"
   assert_eq 0 "$CODE" "exit code"
@@ -179,6 +205,49 @@ test_apply_opens_pr() {
   assert_eq "$(origin_rev main)" "$(git -C "$T/work" rev-parse HEAD~1)" "one commit on top of main"
   assert_eq "$TITLE" "$(git -C "$T/work" log -1 --format=%s)" "commit subject"
   assert_eq 1 "$(countx "note pr: merge https://x/pull/9 once verify / verify is green" "$T/out")" "pr note"
+}
+
+prs() { answer "pr list --repo $R --state open --json title,url,headRefName,isCrossRepository --limit 100" "$1"; }
+
+test_ignores_fork_pr() {
+  bare_site; compliant_gh
+  prs '[{"title":"'"$TITLE"'","url":"https://x/pull/3","headRefName":"main","isCrossRepository":true}]'
+  local main_before; main_before="$(origin_rev main)"
+  run_onboard "$R" --host forge --apply
+  assert_eq "$main_before" "$(origin_rev main)" "main untouched"
+  assert_eq 1 "$(log_has '^pr create .*--head netlife/fleet-onboarding ')" "new PR from the onboarding branch"
+  assert_eq "$(git -C "$T/work" rev-parse HEAD)" "$(origin_rev netlife/fleet-onboarding)" "onboarding branch pushed"
+  assert_eq 0 "$(count 'pull/3' "$T/out")" "fork PR not mentioned"
+}
+
+test_refuses_push_to_main() {
+  bare_site; compliant_gh
+  prs '[{"title":"'"$TITLE"'","url":"https://x/pull/4","headRefName":"main","isCrossRepository":false}]'
+  local main_before; main_before="$(origin_rev main)"
+  run_onboard "$R" --host forge --apply
+  assert_eq 1 "$CODE" "exit code"
+  assert_eq "$main_before" "$(origin_rev main)" "main untouched"
+  assert_eq 1 "$(count '^diff files:.*refusing' "$T/out")" "diff files"
+  assert_eq 0 "$(log_has 'pr create')" "no pr create"
+  assert_eq 0 "$(cd "$T/work" && git status --porcelain | wc -l | tr -d ' ')" "nothing written"
+}
+
+test_refuses_default_branch() {
+  bare_site; compliant_gh
+  answer "api repos/$R" '{"topics":["netlife-fleet"],"allow_auto_merge":true,"default_branch":"trunk"}'
+  prs '[{"title":"'"$TITLE"'","url":"https://x/pull/5","headRefName":"trunk","isCrossRepository":false}]'
+  run_onboard "$R" --host forge --apply
+  assert_eq 1 "$(count '^diff files:.*refusing to commit on trunk' "$T/out")" "diff files"
+  assert_eq none "$(origin_rev trunk)" "nothing pushed"
+}
+
+test_on_branch_with_other_pr_head() {
+  bare_site; compliant_gh
+  ( cd "$T/work" && git checkout -q -b netlife/fleet-onboarding )
+  prs '[{"title":"'"$TITLE"'","url":"https://x/pull/6","headRefName":"someone/else","isCrossRepository":false}]'
+  run_onboard "$R" --host forge --apply
+  assert_eq 1 "$(count '^diff files:.*is from someone/else' "$T/out")" "diff files"
+  assert_eq none "$(origin_rev netlife/fleet-onboarding)" "nothing pushed"
 }
 
 test_apply_on_existing_branch() {
