@@ -56,11 +56,11 @@ test_verify_appends_cloud_env() {
   done
 }
 
+# These hashes pin nch's current callers; change them only together with nch.
 test_forge_examples_unchanged() {
-  local f
-  for f in verify snapshot backmerge; do
-    assert_eq "" "$(git show "HEAD:examples/$f.yml" | diff - "examples/$f.yml" 2>&1)" "examples/$f.yml unchanged"
-  done
+  assert_eq d2df07d80d4053daaaf0f2ca975e946bd95eb53954470df3022e7131478c95aa "$(shasum -a 256 examples/verify.yml | cut -d' ' -f1)" "examples/verify.yml hash"
+  assert_eq e2d1ef8f1db743c33ce000d70eefc3b262478e7f09ff6f4dbd91cf1168c1bdf0 "$(shasum -a 256 examples/snapshot.yml | cut -d' ' -f1)" "examples/snapshot.yml hash"
+  assert_eq 3cde676020b6954fdd343539efcd8cb2d65b95dbfae172c88acbdd98e93422ec "$(shasum -a 256 examples/backmerge.yml | cut -d' ' -f1)" "examples/backmerge.yml hash"
 }
 
 test_verify_inputs_and_job() {
