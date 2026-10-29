@@ -323,3 +323,6 @@ All triaged "not before the live run" by the final reviewer. Tx = task number.
 - T4: Commerce order addresses and user custom field content not in shared scrub; README could name them for reviewers.
 - T4: scrub-sql test maps port 3311 needlessly (false SKIP when busy).
 - Rollout order (final review): re-release `v1` before the nfi PR opens (verify-cloud passes CRAFT_CLOUD_* to verify.yml@v1); nfi has no snapshot until the snapshot caller is merged, so the onboarding PR's first verify cannot find `snapshots/nfi/latest.sql.gz`.
+- Live run (29 Oct): `scripts/crawl.sh` prints `echo: write error: Broken pipe` when it cuts the Craft log excerpt short (harmless, noisy).
+- Live run (29 Oct): both hand-pasted Spaces secrets on nfi were wrong (403 read, InvalidAccessKeyId write). The `todo secret` lines from onboard.sh should suggest piping the value (`op read … | gh secret set NAME --repo …`) instead of pasting.
+- Live run (29 Oct): nch drift is the missing `netlife-fleet` topic (phase 1 predates it) and no `.netlife/scrub.sql`.
