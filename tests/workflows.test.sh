@@ -22,7 +22,7 @@ test_verify_is_callable() {
 }
 
 test_verify_declares_secrets() {
-  assert_eq "RENOVATE_APP_PRIVATE_KEY RENOVATE_PUSH_TOKEN SNAPSHOT_READ_KEY SNAPSHOT_READ_SECRET" "$(yq_ruby 'puts on["workflow_call"]["secrets"].keys.sort.join(" ")' 2>&1)" "declared secrets"
+  assert_eq "CRAFT_CLOUD_ENVIRONMENT_ID CRAFT_CLOUD_PROJECT_ID CRAFT_CLOUD_SIGNING_KEY CRAFT_CLOUD_USE_ASSET_CDN RENOVATE_APP_PRIVATE_KEY RENOVATE_PUSH_TOKEN SNAPSHOT_READ_KEY SNAPSHOT_READ_SECRET" "$(yq_ruby 'puts on["workflow_call"]["secrets"].keys.sort.join(" ")' 2>&1)" "declared secrets"
 }
 
 test_snapshot_declares_secrets() {
@@ -30,12 +30,37 @@ test_snapshot_declares_secrets() {
 }
 
 test_examples_map_every_secret() {
-  local name
-  for name in verify snapshot; do
-    assert_eq "" "$(ruby -ryaml -e 'w = YAML.load_file(ARGV[0]); e = YAML.load_file(ARGV[1]); on = w[true] || w["on"]; decl = on["workflow_call"]["secrets"].keys; got = e["jobs"].values.first["secrets"]; puts "x" unless got.is_a?(Hash) && (decl - got.keys).empty? && got.keys.sort == decl.sort' ".github/workflows/$name.yml" "examples/$name.yml" 2>&1)" "$name example maps every declared secret"
-    assert_eq 1 "$(grep -c -E '^[[:space:]]+uses: netliferesearch/craft-ci/' "examples/$name.yml")" "$name example calls the reusable workflow"
-    assert_eq 0 "$(grep -c 'secrets: inherit' "examples/$name.yml")" "$name example has no secrets: inherit"
+  local cloud="CRAFT_CLOUD_PROJECT_ID CRAFT_CLOUD_ENVIRONMENT_ID CRAFT_CLOUD_USE_ASSET_CDN CRAFT_CLOUD_SIGNING_KEY"
+  local ssh="SOURCE_SSH_HOST SOURCE_SSH_USER SOURCE_SSH_KEY"
+  local row name file exempt
+  for row in "verify|verify.yml|$cloud" "verify|verify-cloud.yml|" "snapshot|snapshot.yml|" "snapshot|snapshot-cloud-backup.yml|$ssh"; do
+    IFS='|' read -r name file exempt <<< "$row"
+    assert_eq "" "$(ruby -ryaml -e 'w = YAML.load_file(ARGV[0]); e = YAML.load_file(ARGV[1]); on = w[true] || w["on"]; want = on["workflow_call"]["secrets"].keys - ARGV[2].split; got = e["jobs"].values.first["secrets"]; puts "x" unless got.is_a?(Hash) && got.keys.sort == want.sort' ".github/workflows/$name.yml" "examples/$file" "$exempt" 2>&1)" "$file maps exactly the declared secrets minus exempt"
+    assert_eq 1 "$(grep -c -E '^[[:space:]]+uses: netliferesearch/craft-ci/' "examples/$file")" "$file calls the reusable workflow"
+    assert_eq 0 "$(grep -c 'secrets: inherit' "examples/$file")" "$file has no secrets: inherit"
   done
+}
+
+test_cloud_snapshot_maps_backup_names() {
+  local n
+  for n in HOST NAME USER PASSWORD; do
+    assert_eq '${{ secrets.DB_'"$n"' }}' "$(ruby -ryaml -e 'puts YAML.load_file(ARGV[0])["jobs"].values.first["secrets"]["SOURCE_DB_" + ARGV[1]]' examples/snapshot-cloud-backup.yml "$n" 2>&1)" "SOURCE_DB_$n mapping"
+  done
+}
+
+test_verify_appends_cloud_env() {
+  local n extra
+  extra="$(yq_ruby 'puts doc["jobs"]["verify"]["steps"].find { |s| s["name"] == "Verify site" }["with"]["extra-env"]' 2>&1)"
+  for n in CRAFT_CLOUD_PROJECT_ID CRAFT_CLOUD_ENVIRONMENT_ID CRAFT_CLOUD_USE_ASSET_CDN CRAFT_CLOUD_SIGNING_KEY; do
+    case "$extra" in *"$n"*) ;; *) assert_eq "contains $n" "missing" "extra-env passes $n" ;; esac
+  done
+}
+
+# These hashes pin nch's current callers; change them only together with nch.
+test_forge_examples_unchanged() {
+  assert_eq d2df07d80d4053daaaf0f2ca975e946bd95eb53954470df3022e7131478c95aa "$(shasum -a 256 examples/verify.yml | cut -d' ' -f1)" "examples/verify.yml hash"
+  assert_eq e2d1ef8f1db743c33ce000d70eefc3b262478e7f09ff6f4dbd91cf1168c1bdf0 "$(shasum -a 256 examples/snapshot.yml | cut -d' ' -f1)" "examples/snapshot.yml hash"
+  assert_eq 3cde676020b6954fdd343539efcd8cb2d65b95dbfae172c88acbdd98e93422ec "$(shasum -a 256 examples/backmerge.yml | cut -d' ' -f1)" "examples/backmerge.yml hash"
 }
 
 test_verify_inputs_and_job() {
@@ -61,6 +86,13 @@ test_examples_lint() {
   out="$(actionlint examples/*.yml 2>&1)" || code=$?
   assert_eq 0 "$code" "actionlint examples ($out)"
   assert_eq nch "$(jq -r '.slug' examples/fleet.json 2>&1)" "example manifest slug"
+}
+
+test_example_manifest_resolves() {
+  local out code=0
+  out="$(GITHUB_REPOSITORY=Feedsystem/nch MANIFEST_NO_REMOTE=1 bash scripts/manifest.sh examples/fleet.json 2>&1)" || code=$?
+  assert_eq 0 "$code" "manifest.sh exit on examples/fleet.json ($out)"
+  case "$out" in *$'SLUG=nch'*) ;; *) assert_eq "contains SLUG=nch" "$out" "resolved slug" ;; esac
 }
 
 run_tests

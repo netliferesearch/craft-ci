@@ -31,6 +31,18 @@ on:
       RENOVATE_PUSH_TOKEN:
         description: Fallback token for pushing project config changes
         required: false
+      CRAFT_CLOUD_PROJECT_ID:
+        description: Craft Cloud project ID, appended to .env when set
+        required: false
+      CRAFT_CLOUD_ENVIRONMENT_ID:
+        description: Craft Cloud environment ID, appended to .env when set
+        required: false
+      CRAFT_CLOUD_USE_ASSET_CDN:
+        description: Craft Cloud asset CDN switch, appended to .env when set
+        required: false
+      CRAFT_CLOUD_SIGNING_KEY:
+        description: Craft Cloud signing key, appended to .env when set
+        required: false
 
 jobs:
   verify:
@@ -80,6 +92,11 @@ jobs:
           crawl-limit: ${{ steps.manifest.outputs.VERIFY_CRAWL_LIMIT }}
           ignore-log-pattern: ${{ steps.manifest.outputs.VERIFY_IGNORE_LOG_PATTERN }}
           environment: ${{ steps.manifest.outputs.VERIFY_ENVIRONMENT }}
-          extra-env: ${{ inputs.extra-env }}
+          extra-env: |
+            ${{ inputs.extra-env }}
+            ${{ secrets.CRAFT_CLOUD_PROJECT_ID != '' && format('CRAFT_CLOUD_PROJECT_ID={0}', secrets.CRAFT_CLOUD_PROJECT_ID) || '' }}
+            ${{ secrets.CRAFT_CLOUD_ENVIRONMENT_ID != '' && format('CRAFT_CLOUD_ENVIRONMENT_ID={0}', secrets.CRAFT_CLOUD_ENVIRONMENT_ID) || '' }}
+            ${{ secrets.CRAFT_CLOUD_USE_ASSET_CDN != '' && format('CRAFT_CLOUD_USE_ASSET_CDN={0}', secrets.CRAFT_CLOUD_USE_ASSET_CDN) || '' }}
+            ${{ secrets.CRAFT_CLOUD_SIGNING_KEY != '' && format('CRAFT_CLOUD_SIGNING_KEY={0}', secrets.CRAFT_CLOUD_SIGNING_KEY) || '' }}
           commit-project-config: ${{ inputs.project-config-commit }}
           push-token: ${{ steps.app-token.outputs.token || secrets.RENOVATE_PUSH_TOKEN }}

@@ -92,7 +92,7 @@ Behaviour the tests pin:
 - Manifest absent: `diff`; `--write` creates `{"$schema": "https://raw.githubusercontent.com/netliferesearch/craft-ci/v1/fleet.schema.json"}` plus `slug` only when `--slug` is given and differs from the repo-derived default, plus `"branches": {"develop": null}` only for `--develop none`. Pretty-printed with `jq .`. The repo name comes from `GITHUB_REPOSITORY`, which Task 3 sets.
 - Manifest present: run `manifest.sh` with `MANIFEST_NO_REMOTE=1`; exit ≠ 0 is `diff` with its stderr; when `--slug`/`--develop` are given and the resolved `SLUG`/`BRANCH_DEVELOP` differ, `diff`. Never rewritten by `--write`.
 - `ddev database`: `.ddev/config.yaml` without `type: mysql` and `version: "8.0"` under `database:` is `todo` (never written). No `.ddev/` is `todo` too.
-- `scrub`: `.netlife/scrub.sql` absent is `todo` with detail `write and review .netlife/scrub.sql before merging (blocks the snapshot)`.
+- `scrub`: `.netlife/scrub.sql` absent is `todo` with detail `write and review .netlife/scrub.sql before merging (the snapshot runs without it)`.
 - `legacy preview config`: `.craft-preview.json` present is `diff`; `--write` deletes it.
 
 - [ ] **Step 1: Write the failing tests** in `tests/onboard-files.test.sh` (use `make_repo`, write files into `$T/work`, `run_in_work`):
@@ -103,7 +103,7 @@ Behaviour the tests pin:
 - `test_cloud_without_backup`: `craft-cloud.yaml` only; `--write` → `snapshot.yml` equals `examples/snapshot.yml`.
 - `test_host_required_without_cloud_file`: no `craft-cloud.yaml`, no `--host` → exit 2, stderr names `--host`.
 - `test_mariadb_is_todo`: ddev `type: mariadb` → line starting `todo ddev database`, exit 1; `--write` leaves `.ddev/config.yaml` unchanged.
-- `test_missing_scrub_is_todo`: line `todo scrub: write and review .netlife/scrub.sql before merging (blocks the snapshot)`.
+- `test_missing_scrub_is_todo`: line `todo scrub: write and review .netlife/scrub.sql before merging (the snapshot runs without it)`.
 - `test_slug_flag_differs`: existing manifest with `slug: abc`, `--slug xyz` → `diff manifest`.
 - `test_develop_none_written`: no manifest, `--develop none --write` → `.branches.develop == null` in the written file.
 - `test_legacy_preview_removed`: `.craft-preview.json` present, `--write` → file gone.
@@ -280,9 +280,9 @@ Expected: exit 1; `diff` for topic, protection, auto-merge, dependabot alerts, a
 
 - [ ] **Step 2 (Svale): add the secrets** listed as `todo` to Feedsystem/nfi (values from Craft Cloud and 1Password).
 
-- [ ] **Step 3: Apply** with `ONBOARD_CHECKOUT` pointing at `~/code/nfi` on branch `netlife/fleet-onboarding` (Task 5's commit), so the PR carries the DDEV and scrub changes too:
+- [ ] **Step 3: Apply** with `ONBOARD_CHECKOUT` pointing at `~/code/nfi-fleet-onboarding` (a worktree of `~/code/nfi` on branch `netlife/fleet-onboarding`, Task 5's commit), so the PR carries the DDEV and scrub changes too:
 
-Run: `ONBOARD_CHECKOUT=~/code/nfi bash scripts/onboard.sh Feedsystem/nfi --apply`
+Run: `ONBOARD_CHECKOUT=~/code/nfi-fleet-onboarding bash scripts/onboard.sh Feedsystem/nfi --apply`
 Expected: one PR "Adopt craft-ci fleet configuration" on nfi with manifest, three callers, `.ddev/config.yaml`, `.netlife/scrub.sql`; settings applied. PR description says the team needs a fresh local DB import after MySQL 8.0 lands.
 
 - [ ] **Step 4: Renovate.** PR on netliferesearch/renovate adding `'Feedsystem/nfi'` to `repositories` in `config.js`; Svale merges.
@@ -296,3 +296,30 @@ Expected: one PR "Adopt craft-ci fleet configuration" on nfi with manifest, thre
 - [ ] **Step 8: Drift checks.** `bash scripts/onboard.sh Feedsystem/nfi` and `bash scripts/onboard.sh Feedsystem/nch --host forge`. Expected: both exit 0 (only `ok` and `note` lines). nch has no `.netlife/scrub.sql` today, so it reports `todo scrub` until Svale reviews nch's tables and a scrub file (comment-only if the shared scrub suffices) is merged on nch; any `todo secret` on nch is reported, not papered over.
 
 - [ ] **Step 9: Record.** Pilot log row and TODO updates in the Obsidian note; first Renovate run on nfi checked the next morning (Dependency Dashboard issue created).
+
+## Review follow-ups (2026-10-28)
+
+All triaged "not before the live run" by the final reviewer. Tx = task number.
+
+- T1: test_verify_appends_cloud_env checks names only, not the empty-guard or order after inputs.extra-env.
+- T1: a secret value containing a newline would split into extra .env lines (unlikely for IDs/keys).
+- T2: no test pins R1 / --develop comparison on existing manifest (folded into fix as covering test).
+- T2: host-required test does not isolate stderr (run_in_work merges streams).
+- T2: non-existent checkout dir prints only generic usage.
+- T2: backup=yes reported on forge/servebolt when backup-database.yml exists; onboard.sh must only use it for cloud.
+- T2: no RED run recorded.
+- T2: an invalid written manifest stays on disk (rerun still reports diff).
+- T5: Formie FileUpload / user photo asset filenames and titles may hold names; check whether any form uses FileUpload (DB, not project config) during Svale's review.
+- T5: shared-scrub follow-up should also cover drafts.notes and user searchindex rows (feeds R8).
+- T5: game key UPDATE hard-codes field UIDs.
+- T3: Renovate check matches only single-quoted 'owner/repo' in config.js.
+- T3: `ok files … (applied)` printed even when nothing was pushed.
+- T3: gh stub lets unknown write calls succeed silently.
+- T3: checks with app_id null are re-sent without app_id (GitHub may auto-pin to the last app); map null to -1.
+- T3: empty default_branch when repos/<r> read fails guards only literal main.
+- T3: --base main and protection endpoint hard-code main (spec assumes main).
+- T4: addresses owner column picks ownerId over primaryOwnerId when both exist (MIN).
+- T4: administrativeArea and address title not scrubbed.
+- T4: Commerce order addresses and user custom field content not in shared scrub; README could name them for reviewers.
+- T4: scrub-sql test maps port 3311 needlessly (false SKIP when busy).
+- Rollout order (final review): re-release `v1` before the nfi PR opens (verify-cloud passes CRAFT_CLOUD_* to verify.yml@v1); nfi has no snapshot until the snapshot caller is merged, so the onboarding PR's first verify cannot find `snapshots/nfi/latest.sql.gz`.
