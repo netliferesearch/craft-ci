@@ -5,12 +5,14 @@ CREATE TABLE recoverycodes (id INT PRIMARY KEY, userId INT);
 CREATE TABLE sso_identities (id INT PRIMARY KEY, userId INT);
 CREATE TABLE elementactivity (id INT PRIMARY KEY, userId INT);
 CREATE TABLE craftidtokens (id INT PRIMARY KEY, userId INT);
+CREATE TABLE cache (id CHAR(128) PRIMARY KEY, expire INT, data LONGBLOB);
 INSERT INTO webauthn VALUES (1, 1);
 INSERT INTO authenticator VALUES (1, 1);
 INSERT INTO recoverycodes VALUES (1, 1);
 INSERT INTO sso_identities VALUES (1, 1);
 INSERT INTO elementactivity VALUES (1, 1);
 INSERT INTO craftidtokens VALUES (1, 1);
+INSERT INTO cache VALUES ('k', 0, 'user@example.com');
 
 CREATE TABLE gqltokens (id INT PRIMARY KEY, accessToken VARCHAR(255));
 INSERT INTO gqltokens VALUES (1, '__PUBLIC__'), (2, 'real-token');

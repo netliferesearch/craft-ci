@@ -49,7 +49,7 @@ test_craft5_like_with_guarded_tables() {
   run_scrub c5
   assert_eq 0 "$CODE" "scrub exit ($OUT)"
   local t
-  for t in webauthn authenticator recoverycodes sso_identities elementactivity craftidtokens; do
+  for t in webauthn authenticator recoverycodes sso_identities elementactivity craftidtokens cache; do
     assert_eq 0 "$(q c5 "SELECT COUNT(*) FROM $t")" "$t emptied"
   done
   assert_eq "1|scrubbed-2" "$(q c5 "SELECT CONCAT(SUM(accessToken = '__PUBLIC__'), '|', MAX(IF(id = 2, accessToken, ''))) FROM gqltokens")" "gql tokens: public kept, other scrubbed"
