@@ -170,6 +170,15 @@ craft-cloud-remote-backups. Logs and credentials stay in the private site repo; 
 workflow and the script. The slug and the snapshot source come from the manifest: with `snapshot.source`
 set to `none` the run ends with a notice and uploads nothing.
 
+The production dump leaves out the rows of the tables in `SCHEMA_ONLY_TABLES` (default `cache`, Craft's
+DbCache, which on nfi was 2.4 GB of a 3 GB dump and made the restore exceed the 30-minute job timeout).
+Their `CREATE TABLE` is still dumped, so the snapshot imports cleanly and Craft rebuilds the cache on
+demand. Craft Cloud sites use DbCache unless Valkey is enabled; a Forge or Servebolt site on file or Redis
+cache has no `cache` table and gets the plain dump, as does a site with a table prefix (like the rest of
+the scrub) or a dump user without `SELECT` on the table, which the existence query then reports as absent.
+The variable is set in `scripts/snapshot.sh`, not a workflow input. The log shows `schema only: cache` or
+`schema only: none`.
+
 The shared `scrub.sql` anonymises users and empties sessions, tokens, the queue and announcements. It also
 clears core Craft tables that hold credentials or personal data when they exist (`webauthn`,
 `authenticator`, `recoverycodes`, `sso_identities`, `elementactivity`, `craftidtokens`, the user rows of

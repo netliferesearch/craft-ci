@@ -28,8 +28,9 @@ SET @s = IF((SELECT COUNT(*) FROM information_schema.tables WHERE table_schema =
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @s = IF((SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'craftidtokens') > 0, 'DELETE FROM craftidtokens', 'DO 0');
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
--- Craft's database cache (DbCache): stale entries and cached fragments, regenerated on demand. Can hold anything
--- a plugin cached, and on nfi it was 2.4 GB of a 3 GB dump.
+-- Craft's database cache (DbCache): stale entries and cached fragments, regenerated on demand. Normally already
+-- empty here, because snapshot.sh dumps it schema-only (SCHEMA_ONLY_TABLES); this DELETE stays as a guard for a
+-- site that overrides that list. On nfi the table was 2.4 GB of a 3 GB dump.
 SET @s = IF((SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cache') > 0, 'DELETE FROM cache', 'DO 0');
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
