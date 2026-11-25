@@ -3,7 +3,9 @@
 # Needs: SLUG, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DO_SPACES_BUCKET, DO_SPACES_REGION,
 #        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, a local MySQL on 127.0.0.1:3307 (root, no password)
 # Optional: DB_PORT (3306), SSH_HOST/SSH_USER/SSH_KEY to tunnel, SCRUB_TRUNCATE="formie_submissions other_table",
-#           EXTRA_SCRUB_SQL=path to a per-site scrub file, applied after scrub.sql when the file exists
+#           EXTRA_SCRUB_SQL=path to a per-site scrub file, applied after scrub.sql when the file exists,
+#           SCHEMA_ONLY_TABLES="cache" (default): tables dumped without rows, so Craft's DbCache is never
+#           transferred or restored (on nfi it was 2.4 GB of a 3 GB dump and pushed the job past its timeout)
 set -euo pipefail
 
 : "${SLUG:?}" "${DB_HOST:?}" "${DB_NAME:?}" "${DB_USER:?}" "${DB_PASSWORD:?}"
@@ -22,10 +24,25 @@ if [ -n "${SSH_HOST:-}" ]; then
   host=127.0.0.1; port=3309
 fi
 
+conn=(--host="$host" --port="$port" --protocol=TCP --user="$DB_USER" --password="$DB_PASSWORD")
+dump_opts=(--single-transaction --quick --no-tablespaces --skip-triggers --set-gtid-purged=OFF --lock-tables=false)
+
+# Tables whose rows never leave the source: their CREATE TABLE is dumped in a second pass so the
+# snapshot still imports cleanly. A listed table that does not exist (no DbCache, a table prefix) is skipped.
+SCHEMA_ONLY_TABLES="${SCHEMA_ONLY_TABLES-cache}"
+schema_only=(); ignore=()
+for t in ${SCHEMA_ONLY_TABLES}; do
+  [[ "$t" =~ ^[A-Za-z0-9_]+$ ]] || { echo "bad table name: $t" >&2; exit 1; }
+  n=$(mysql "${conn[@]}" -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$DB_NAME' AND table_name = '$t'")
+  if [ "$n" = 1 ]; then schema_only+=("$t"); ignore+=("--ignore-table=$DB_NAME.$t"); fi
+done
+if [ "${#schema_only[@]}" -gt 0 ]; then echo "schema only: ${schema_only[*]}"; else echo "schema only: none"; fi
+
 echo "dumping $DB_NAME from $DB_HOST"
-mysqldump --host="$host" --port="$port" --protocol=TCP --user="$DB_USER" --password="$DB_PASSWORD" \
-  --single-transaction --quick --no-tablespaces --skip-triggers --set-gtid-purged=OFF --lock-tables=false \
-  "$DB_NAME" > "$work/raw.sql"
+mysqldump "${conn[@]}" "${dump_opts[@]}" "${ignore[@]+"${ignore[@]}"}" "$DB_NAME" > "$work/raw.sql"
+if [ "${#schema_only[@]}" -gt 0 ]; then
+  mysqldump "${conn[@]}" "${dump_opts[@]}" --no-data "$DB_NAME" "${schema_only[@]}" >> "$work/raw.sql"
+fi
 
 echo "restoring into scratch mysql and scrubbing"
 scratch=(mysql --host=127.0.0.1 --port="$SCRATCH_PORT" --protocol=TCP --user=root)
